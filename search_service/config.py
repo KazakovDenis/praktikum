@@ -14,4 +14,4 @@ os.makedirs(LOG_DIR, exist_ok=True)
 
 # app
 class Config:
-    DEBUG = False
+    DEBUG = True
