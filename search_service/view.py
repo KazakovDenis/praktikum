@@ -3,4 +3,4 @@ from .app import app
 
 @app.route('/')
 def index():
-    return 'Service is running'
+    return '<h1>Service is running</h1>'
