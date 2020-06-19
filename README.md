@@ -2,7 +2,7 @@
   
 ## Installation
 ```shell script
-pip install -r requirements.txt
+pip install -r requirements/production.txt
 ```
   
 ## Run application
