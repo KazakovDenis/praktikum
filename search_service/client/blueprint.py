@@ -1,6 +1,6 @@
 import json
 from flask import Blueprint, Response, request
-from ..helpers import logger
+from ..app import logger
 
 
 client = Blueprint('client', __name__)
