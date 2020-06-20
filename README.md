@@ -1,5 +1,9 @@
 # Praktikum
   
-## Sprint 1
+## Services
+* [Full text search service](https://github.com/KazakovDenis/praktikum/tree/master/search_service#praktikum)
+
+## Practice
+### Sprint 1
 * [Empire bugs back](https://github.com/KazakovDenis/praktikum/blob/master/practice/sprint_1/empire_bugs_back.py) 
-* [Search service](https://github.com/KazakovDenis/praktikum/tree/master/search_service#praktikum)
+* [SQL task](https://github.com/KazakovDenis/praktikum/blob/master/practice/sprint_1/sqlite.sql)

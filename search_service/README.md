@@ -6,12 +6,17 @@ Clone this repository then install dependencies:
 pip install -r search_service/requirements/production.txt
 ```
   
-## Run application
-Execute:
+## Usage
+Execute to run Elasticsearch server from a docker container:
+```shell script
+docker run -d --name elastic -p 9200:9200 -e "discovery.type=single-node" docker.elastic.co/elasticsearch/elasticsearch:7.7.0
+``` 
+
+Execute to run the application:
 ```shell script
 python -m search_service.manage runserver
 ``` 
-and visit [localhost](http://127.0.0.1:8000)
+and visit http://127.0.0.1:8000
 
 ## Testing  
 Install dependencies before
