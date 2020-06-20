@@ -1,10 +1,12 @@
 from logging import getLogger, Logger, FileHandler, Formatter
 import os
 
+from .config import ROOT
+
 
 # defaults
 LOG_LEVEL = 20
-LOG_DIR = os.path.join(os.curdir, 'log')
+LOG_DIR = os.path.join(ROOT, 'log')
 LOG_FORMAT = "[%(asctime)s] @%(name)s  %(levelname)s in %(module)s: %(message)s"
 os.makedirs(LOG_DIR, exist_ok=True)
 
