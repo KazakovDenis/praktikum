@@ -14,7 +14,21 @@ SELECT writer, MAX(amount) as movies_amount
         SELECT w.name as writer, count(m.id) as amount
             FROM writers w
             JOIN movies m
-            ON w.id = m.writer
+                ON w.id = m.writer
             WHERE w.name != 'N/A'
             GROUP BY w.name
+    )
+
+
+-- Actors who have took part in most films
+SELECT actor, MAX(amount) as movies_amount
+    FROM (
+        SELECT a.name as actor, count(m.id) as amount
+            FROM actors a
+            JOIN movie_actors ma
+                ON a.id = ma.actor_id
+            JOIN movies m
+                ON m.id = ma.movie_id
+            WHERE a.name != 'N/A'
+            GROUP BY a.name
     )
