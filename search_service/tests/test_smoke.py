@@ -32,3 +32,9 @@ def test_client_info():
     response = http_get(BASE_URL + '/client/info')
     payload = json_loads(response.content)
     assert 'python-requests' in payload.get('user_agent', '')
+
+
+def test_api_v1_video():
+    """Check that API/v1 endpoint works correctly"""
+    response = http_get(BASE_URL + '/api/v1/video')
+    assert response.status_code == 200
