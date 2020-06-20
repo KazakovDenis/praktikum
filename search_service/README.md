@@ -2,7 +2,7 @@
   
 ## Installation
 ```shell script
-pip install -r requirements/production.txt
+pip install -r search_service/requirements/production.txt
 ```
   
 ## Run application
@@ -13,7 +13,7 @@ python -m search_service.manage runserver -h <ip> -p <port>
 ## Testing  
 Install dependencies before
 ```shell script
-pip install -r requirements/test.txt
+pip install -r search_service/requirements/test.txt
 ```
 Then execute to run tests
 ```shell script
