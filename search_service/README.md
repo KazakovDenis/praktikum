@@ -9,7 +9,7 @@ pip install -r search_service/requirements/production.txt
 ## Usage
 Execute to run Elasticsearch server from a docker container:
 ```shell script
-docker run -d --name elastic -p 9200:9200 -e "discovery.type=single-node" docker.elastic.co/elasticsearch/elasticsearch:7.7.0
+docker run --name elastic -d --rm -p 9200:9200 -e "discovery.type=single-node" docker.elastic.co/elasticsearch/elasticsearch:7.7.0
 ``` 
 
 Execute to run the application:
