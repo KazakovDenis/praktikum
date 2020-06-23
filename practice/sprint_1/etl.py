@@ -118,21 +118,24 @@ def convert_movie_data(db: Connection, data: dict) -> dict:
     return data
 
 
-def create_payload():
-    return ''
+def prepare_bulk_payload(data: list, action_str: str = None) -> str:
+    """Converts items from data list to Elasticsearch bulk body"""
 
-
-# todo: Load
-
-def main():
+    payload = ''
+    action_str = action_str or '{"create": {}}\n'
+    
+    for item in data:
+        payload += action_str + str(item) + '\n'
+    
+    return payload.replace('\'', '"')
 
     es = Elasticsearch(['http://127.0.0.1:9200'])
 
     if es.ping():
         cache = []
 
-        with connect('db.sqlite') as db:
-            movies_ids = get_movies_ids(db)
+    with connect('db.sqlite') as db:
+        movies_ids = get_movies_ids(db)
 
             for movie_id in movies_ids:
                 data = get_movie_data(db, movie_id)
