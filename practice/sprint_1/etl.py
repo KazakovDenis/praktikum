@@ -3,6 +3,10 @@ from sqlite3 import connect, Connection
 from typing import Iterator
 
 from elasticsearch import Elasticsearch
+from common.config import DB_ADDRESS, ES_HOSTS
+
+
+es = Elasticsearch(ES_HOSTS)
 
 
 # Extract
