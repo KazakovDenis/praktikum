@@ -133,30 +133,40 @@ def prepare_bulk_payload(data: list, action_str: str = None) -> str:
     
     return payload.replace('\'', '"')
 
-    es = Elasticsearch(['http://127.0.0.1:9200'])
 
-    if es.ping():
-        cache = []
+# Load
+def upload_movies_to_es(es_client: Elasticsearch) -> list:
+    """Uploads movies data from the database to an Elasticsearch server
 
-    with connect('db.sqlite') as db:
+    :param es_client: Elasticearch client instance
+    :return: items with errors
+    """
+
+    cache, with_errors = [], []
+
+    with connect(DB_ADDRESS) as db:
         movies_ids = get_movies_ids(db)
 
-            for movie_id in movies_ids:
-                data = get_movie_data(db, movie_id)
-                es_data = convert_movie_data(db, data)
+        for movie_id in movies_ids:
+            data = get_movie_data(db, movie_id)
+            es_data = convert_movie_data(db, data)
+            cache.append(es_data)
 
-                if len(cache) < 10:
-                    cache.append(es_data)
-                else:
-                    # todo: bulk load
-                    payload = create_payload()
-                    result = es.bulk(body=payload)
-                    if not result['Error']:
-                        cache.clear()
-    else:
-        raise ConnectionError('Elasticsearch server is not available')
+            if len(cache) > 10:
+                payload = prepare_bulk_payload(cache)
+                result = es_client.bulk(index='movies', body=payload)
+                cache.clear()
+
+                if result['errors']:
+                    with_errors.extend([i for i in result['items']])
+
+    return with_errors
 
 
 if __name__ == '__main__':
-    main()
+
+    if not es.ping():
+        raise ConnectionError('Elasticsearch server is not available')
+
+    upload_movies_to_es(es)
 
