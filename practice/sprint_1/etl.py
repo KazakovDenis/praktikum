@@ -6,9 +6,6 @@ from elasticsearch import Elasticsearch
 from common.config import DB_ADDRESS, ES_HOSTS
 
 
-es = Elasticsearch(ES_HOSTS)
-
-
 def create_index(es_client: Elasticsearch):
     """Creates the movie index in ElasticSearch server"""
 
@@ -145,9 +142,9 @@ def prepare_bulk_payload(data: list, action_str: str = None) -> str:
 
 # Load
 def upload_movies_to_es(es_client: Elasticsearch) -> list:
-    """Uploads movies data from the database to an Elasticsearch server
+    """Uploads movies data from the database to an ElasticSearch server
 
-    :param es_client: Elasticearch client instance
+    :param es_client: ElasticSearch client instance
     :return: items with errors
     """
 
@@ -159,23 +156,33 @@ def upload_movies_to_es(es_client: Elasticsearch) -> list:
         for movie_id in movies_ids:
             data = get_movie_data(db, movie_id)
             es_data = convert_movie_data(db, data)
-            cache.append(es_data)
+            result = es_client.create(index='movies', id=movie_id, body=es_data, ignore=409)
 
-            if len(cache) > 10:
-                payload = prepare_bulk_payload(cache)
-                result = es_client.bulk(index='movies', body=payload)
-                cache.clear()
+            if result['error']:
+                with_errors.append(movie_id)
 
-                if result['errors']:
-                    with_errors.extend([i for i in result['items']])
+            # cache.append(movie_id)
+            # if len(cache) > 10:
+            #     payload = prepare_bulk_payload(cache)
+            #     result = es_client.bulk(index='movies', body=payload)
+            #     cache.clear()
+            #
+            #     if result['errors']:
+            #         with_errors.extend([i for i in result['items']])
 
     return with_errors
 
 
-if __name__ == '__main__':
-
+def main():
+    es = Elasticsearch(ES_HOSTS)
     if not es.ping():
-        raise ConnectionError('Elasticsearch server is not available')
+        raise ConnectionError('ElasticSearch server is not available')
 
-    upload_movies_to_es(es)
+    create_index(es)
+    not_uploaded = upload_movies_to_es(es)
+    return not_uploaded
+
+
+if __name__ == '__main__':
+    main()
 
