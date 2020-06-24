@@ -9,6 +9,15 @@ from common.config import DB_ADDRESS, ES_HOSTS
 es = Elasticsearch(ES_HOSTS)
 
 
+def create_index(es_client: Elasticsearch):
+    """Creates the movie index in ElasticSearch server"""
+
+    with open('create_index.json', 'rb') as file:
+        body = json_loads(file.read())
+
+    return es_client.indices.create('movies', body, ignore=400)
+
+
 # Extract
 def get_movies_ids(db: Connection) -> Iterator[str]:
     """Extracts ids of all movies from DB
