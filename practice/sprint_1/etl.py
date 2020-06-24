@@ -3,16 +3,8 @@ from sqlite3 import connect, Connection
 
 from elasticsearch import Elasticsearch
 from elasticsearch.helpers import bulk
+
 from common.config import DB_ADDRESS, ES_HOSTS
-
-
-def create_index(es_client: Elasticsearch):
-    """Creates the movie index in ElasticSearch server"""
-
-    with open('create_index.json', 'rb') as file:
-        body = json_loads(file.read())
-
-    return es_client.indices.create('movies', body, ignore=400)
 
 
 # Extract
@@ -86,7 +78,6 @@ def get_movie_data(db: Connection, movie_id: str) -> dict:
     """
 
     cursor = db.execute(query, [movie_id])
-    # todo: if None
     rating, genre, title, plot, director, \
         actors_names, writers_names, actors, writers = cursor.fetchone()
     cursor.close()
@@ -128,19 +119,16 @@ def convert_movie_data(db: Connection, data: dict) -> dict:
     return data
 
 
-def prepare_bulk_payload(data: list, action_str: str = None) -> str:
-    """Converts items from data list to Elasticsearch bulk body"""
-
-    payload = ''
-    action_str = action_str or '{"create": {}}\n'
-    
-    for item in data:
-        payload += action_str + str(item) + '\n'
-    
-    return payload.replace('\'', '"')
-
-
 # Load
+def create_index(es_client: Elasticsearch):
+    """Creates the movie index in ElasticSearch server"""
+
+    with open('create_index.json', 'rb') as file:
+        body = json_loads(file.read())
+
+    return es_client.indices.create('movies', body, ignore=400)
+
+
 def upload_movies_to_es(es_client: Elasticsearch) -> list:
     """Uploads movies data from the database to an ElasticSearch server
 
@@ -158,11 +146,7 @@ def upload_movies_to_es(es_client: Elasticsearch) -> list:
             es_data = convert_movie_data(db, data)
             cache.append(es_data)
 
-            # result = es_client.create(index='movies', id=movie_id, body=es_data, ignore=409)
-            # if result['error']:
-            #     with_errors.append(movie_id)
-
-            if len(cache) > 10:
+            if len(cache) > 50:
                 _, failed = bulk(es_client, cache, index='movies')
                 cache.clear()
                 with_errors.extend(failed)
