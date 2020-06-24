@@ -1,6 +1,5 @@
 from json import loads as json_loads
 from sqlite3 import connect, Connection
-from typing import Iterator
 
 from elasticsearch import Elasticsearch
 from common.config import DB_ADDRESS, ES_HOSTS
@@ -16,19 +15,19 @@ def create_index(es_client: Elasticsearch):
 
 
 # Extract
-def get_movies_ids(db: Connection) -> Iterator[str]:
+def get_movies_ids(db: Connection) -> str:
     """Extracts ids of all movies from DB
 
     :param db: database connection instance
-    :return: an iterator with ids of all movies
+    :return: ids of a movies
     """
 
     cursor = db.execute('SELECT id FROM movies')
-    records = cursor.fetchall()
-    cursor.close()
 
-    ids = map(lambda item: item[0], records)
-    return ids
+    while record := cursor.fetchone():
+        yield record[0]
+
+    cursor.close()
 
 
 def get_writers_names(db: Connection, movie_data: dict) -> str:
