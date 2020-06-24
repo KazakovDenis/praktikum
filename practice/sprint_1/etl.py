@@ -2,6 +2,7 @@ from json import loads as json_loads
 from sqlite3 import connect, Connection
 
 from elasticsearch import Elasticsearch
+from elasticsearch.helpers import bulk
 from common.config import DB_ADDRESS, ES_HOSTS
 
 
@@ -108,7 +109,7 @@ def get_movie_data(db: Connection, movie_id: str) -> dict:
 
 # Transform
 def convert_movie_data(db: Connection, data: dict) -> dict:
-    """Converts the movie data to be uploaded to Elasticsearch server
+    """Converts the movie data to be uploaded to ElasticSearch server
 
     :param db: database connection instance
     :param data: the movie data
@@ -155,19 +156,16 @@ def upload_movies_to_es(es_client: Elasticsearch) -> list:
         for movie_id in movies_ids:
             data = get_movie_data(db, movie_id)
             es_data = convert_movie_data(db, data)
-            result = es_client.create(index='movies', id=movie_id, body=es_data, ignore=409)
+            cache.append(es_data)
 
-            if result['error']:
-                with_errors.append(movie_id)
+            # result = es_client.create(index='movies', id=movie_id, body=es_data, ignore=409)
+            # if result['error']:
+            #     with_errors.append(movie_id)
 
-            # cache.append(movie_id)
-            # if len(cache) > 10:
-            #     payload = prepare_bulk_payload(cache)
-            #     result = es_client.bulk(index='movies', body=payload)
-            #     cache.clear()
-            #
-            #     if result['errors']:
-            #         with_errors.extend([i for i in result['items']])
+            if len(cache) > 10:
+                _, failed = bulk(es_client, cache, index='movies')
+                cache.clear()
+                with_errors.extend(failed)
 
     return with_errors
 
