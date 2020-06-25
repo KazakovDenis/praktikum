@@ -1,10 +1,11 @@
 from json import loads as json_loads
+from os.path import join
 from sqlite3 import connect, Connection
 
 from elasticsearch import Elasticsearch
 from elasticsearch.helpers import bulk
 
-from common.config import DB_ADDRESS, ES_HOSTS
+from common.config import DB_ADDRESS, ES_HOSTS, JSON_DIR
 
 
 # Extract
@@ -123,7 +124,9 @@ def convert_movie_data(db: Connection, data: dict) -> dict:
 def create_index(es_client: Elasticsearch):
     """Creates the movie index in ElasticSearch server"""
 
-    with open('create_index.json', 'rb') as file:
+    script = join(JSON_DIR, 'create_index.json')
+
+    with open(script, 'rb') as file:
         body = json_loads(file.read())
 
     return es_client.indices.create('movies', body, ignore=400)
