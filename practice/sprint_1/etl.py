@@ -154,6 +154,10 @@ def upload_movies_to_es(es_client: Elasticsearch) -> list:
                 cache.clear()
                 with_errors.extend(failed)
 
+    # remains
+    _, failed = bulk(es_client, cache, index='movies')
+    with_errors.extend(failed)
+
     return with_errors
 
 
