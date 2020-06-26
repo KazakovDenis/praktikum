@@ -1,15 +1,12 @@
-from json import dumps as json_dumps
-from flask import Blueprint, Response, request
+from flask import Blueprint, jsonify, request
 from ..app import logger
 
 
 client = Blueprint('client', __name__)
 
 
-@client.route('info')
+@client.route('info', methods=['GET'])
 def info():
-    logger.info(f'REQUEST FROM: {request.remote_addr}')
+    logger.info(f'{request.method} request FROM: {request.remote_addr}')
     user_agent = request.user_agent.to_header()
-    content = json_dumps({'user_agent': user_agent})
-    response = Response(content, content_type='application/json')
-    return response
+    return jsonify(user_agent=user_agent)
