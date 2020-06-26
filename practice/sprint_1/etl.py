@@ -1,5 +1,6 @@
 from json import loads as json_loads
 from os.path import join
+from re import search as re_search
 from sqlite3 import connect, Connection
 
 from elasticsearch import Elasticsearch
@@ -109,11 +110,15 @@ def convert_movie_data(db: Connection, data: dict) -> dict:
     :return: prepared movie data
     """
 
+    tmp = re_search(r'\d+.\d+', str(data.get('imdb_rating')))
+    rating = float(tmp.group()) if tmp else 0.0
+
     actors = json_loads(data.get('actors') or '[]')
     writers = json_loads(data.get('writers') or '[]')
     writers_names = get_writers_names(db, data)
 
     data.update({
+        'imdb_rating': rating,
         'actors': actors,
         'writers': writers,
         'writers_names': writers_names,
