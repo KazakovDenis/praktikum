@@ -1,0 +1,97 @@
+{
+	"info": {
+		"_postman_id": "c3ff7770-e4c4-4e3b-ac23-94629ea85992",
+		"name": "UserAgent API",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Получить User-Agent",
+			"event": [
+				{
+					"listen": "prerequest",
+					"script": {
+						"id": "840f652a-0ad9-4f07-b7b5-3964a7f01eb8",
+						"exec": [
+							"pm.variables.set(\"user_agent\", pm.variables.replaceIn('{{$randomUserAgent}}'));"
+						],
+						"type": "text/javascript"
+					}
+				},
+				{
+					"listen": "test",
+					"script": {
+						"id": "79b32356-3c58-4d6f-a50c-1c438bdec1cf",
+						"exec": [
+							"pm.test(\"Success\", function() {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"",
+							"pm.test(\"Correct usear-agent answer\", function () {",
+							"    var jsonData = pm.response.json();",
+							"    pm.expect(jsonData.user_agent).to.eql(pm.variables.get(\"user_agent\"));",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "User-Agent",
+						"value": "{{user_agent}}",
+						"type": "text"
+					}
+				],
+				"url": {
+					"raw": "http://127.0.0.1:8000/client/info",
+					"protocol": "http",
+					"host": [
+						"127",
+						"0",
+						"0",
+						"1"
+					],
+					"port": "8000",
+					"path": [
+						"client",
+						"info"
+					],
+					"query": [
+						{
+							"key": "",
+							"value": null,
+							"disabled": true
+						}
+					]
+				}
+			},
+			"response": []
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"id": "ae0a7c99-62a5-4c81-a3c4-df57ca8c1556",
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"id": "5c096ab2-88ed-4793-b212-8fd4ea01def9",
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		}
+	],
+	"protocolProfileBehavior": {}
+}
