@@ -84,6 +84,7 @@ def get_movie_data(db: Connection, movie_id: str) -> dict:
     cursor.close()
 
     raw_data = {
+        "_id": movie_id,
         "id": movie_id,
         "imdb_rating": rating,
         "genre": genre,
@@ -154,7 +155,7 @@ def upload_movies_to_es(es_client: Elasticsearch) -> list:
                 cache.clear()
                 with_errors.extend(failed)
 
-    # remains
+    # cache remains
     _, failed = bulk(es_client, cache, index='movies')
     with_errors.extend(failed)
 
