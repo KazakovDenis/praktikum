@@ -4,6 +4,8 @@ import os
 from .config import ROOT
 
 
+__all__ = 'LOG_DIR', 'LOG_FORMAT', 'LOG_LEVEL', 'get_logger'
+
 # defaults
 LOG_LEVEL = 20
 LOG_DIR = os.path.join(ROOT, 'log')
