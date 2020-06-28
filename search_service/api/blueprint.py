@@ -2,32 +2,41 @@ from elasticsearch.exceptions import NotFoundError
 from flask import Blueprint, jsonify, request
 
 from ..app import es, logger
-from .helpers import get_search_args
+from .helpers import UrlArgument, get_movies
 
 
 api = Blueprint('api', __name__)
 
 
 @api.route('movies', methods=['GET'])
-def search():
-    """Search """
-    query, sort, limit, page = get_search_args()
+def movies():
+    """Searches appropriate movies"""
 
-    results = es.search(
-        query, 'movies',
-        filter_path=['hits.hits._source'],
-        _source=['id', 'title', 'imdb_rating'],
-        size=limit,
-        from_=limit * page,
-        sort=sort
-    ).get('hits', {}).get('hits', [])
+    args = UrlArgument()
 
-    return jsonify([r['_source'] for r in results])
+    # No arguments set
+    if not args:
+        return get_movies(es)
+
+    query, limit, page, sort = args.get()
+    status = args.status
+
+    # Arguments have wrong values
+    if status != 200:
+        return jsonify([]), status
+
+    result = get_movies(es, query, limit, page, sort)
+
+    # No results for the query
+    if not result:
+        status = 404
+
+    return result, status
 
 
 @api.route('movies/<movie_id>', methods=['GET'])
-def get_movie(movie_id):
-    """Looks for movie by id"""
+def movie_detail(movie_id):
+    """Looks for an info by movie id"""
     logger.info(f'{request.method} request FROM: {request.remote_addr}')
     try:
         response = es.get('movies', movie_id)['_source']
