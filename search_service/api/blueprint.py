@@ -9,6 +9,7 @@ api = Blueprint('api', __name__)
 
 
 @api.route('movies', methods=['GET'])
+@api.route('movies/', methods=['GET'])
 def movies():
     """Searches appropriate movies"""
 

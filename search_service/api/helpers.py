@@ -19,10 +19,13 @@ class UrlArgument:
         target = target or str
         value = self.args.get(arg, '').strip()
 
+        if not value:
+            return False
+
         try:
             return target(value)
         except (ValueError, TypeError):
-            return False
+            return None
 
     def get(self):
         """Returns all expected URL arguments"""
@@ -37,7 +40,12 @@ class UrlArgument:
         """Returns limit param to ES query"""
         limit = self._extract('limit', int)
 
-        if limit < 0:
+        # not set
+        if limit is False:
+            return 50
+
+        # wrong value
+        if limit < 0 or limit is None:
             self.status = 422
             return 50
 
@@ -47,17 +55,19 @@ class UrlArgument:
         """Returns page param to ES query"""
         page = self._extract('page', int)
 
-        if not page:
+        # not set
+        if page is False:
             return 1
 
-        if page < 1:
+        # wrong value
+        if page < 1 or page is None:
             self.status = 422
             return 1
 
         return page
 
     def search(self):
-        """Returns body to ES query"""
+        """Returns a body to ES query"""
 
         query = {}
         contained_text = self._extract('search')
@@ -89,7 +99,7 @@ class UrlArgument:
         field = self._extract('sort')
 
         # not set
-        if not field:
+        if field is False:
             return 'imdb_rating'
 
         field = field.translate(self.vocab)
@@ -106,7 +116,7 @@ class UrlArgument:
         value = self._extract('sort_order')
 
         # not set
-        if not value:
+        if value is False:
             return 'desc'
 
         order = value.translate(self.vocab)
@@ -131,7 +141,7 @@ def get_movies(client, query=None, limit=None, page=1, sort=None):
             query or {}, 'movies',
             filter_path=['hits.hits._source'],
             _source=['id', 'title', 'imdb_rating'],
-            size=limit,
+            size=size,
             from_=from_,
             sort=sort
         )
@@ -139,4 +149,5 @@ def get_movies(client, query=None, limit=None, page=1, sort=None):
     except TransportError:
         results = []
 
-    return jsonify([r['_source'] for r in results])
+    movies = [r['_source'] for r in results]
+    return jsonify(movies)
