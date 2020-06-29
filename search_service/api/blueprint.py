@@ -40,9 +40,11 @@ def movies():
 def movie_detail(movie_id):
     """Looks for an info by movie id"""
     logger.info(f'{request.method} request FROM: {request.remote_addr}')
+
     try:
         response = es.get('movies', movie_id)['_source']
-        return jsonify(result=response), 200
+        return jsonify(response), 200
+
     except NotFoundError:
         logger.debug(f'Movie with id = {movie_id} not found')
-        return jsonify(result='Not found'), 404
+        return jsonify('Movie not found'), 404
