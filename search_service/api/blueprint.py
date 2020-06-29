@@ -2,7 +2,7 @@ from elasticsearch.exceptions import NotFoundError
 from flask import Blueprint, jsonify, request
 
 from ..app import es, logger
-from .helpers import UrlArgument, get_movies
+from .helpers import UrlArgValidator, get_movies
 
 
 api = Blueprint('api', __name__)
@@ -13,20 +13,18 @@ api = Blueprint('api', __name__)
 def movies():
     """Searches appropriate movies"""
 
-    args = UrlArgument()
+    status = 200
+    args = UrlArgValidator()
 
     # No arguments set
     if not args:
         return get_movies(es)
 
-    query, limit, page, sort = args.get()
-    status = args.status
-
     # Arguments have wrong values
-    if status != 200:
-        return jsonify([]), status
+    if args.errors:
+        return jsonify([]), 422
 
-    result = get_movies(es, query, limit, page, sort)
+    result = get_movies(es, *args)
 
     # No results for the query
     if not result:

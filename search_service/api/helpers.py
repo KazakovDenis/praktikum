@@ -2,17 +2,20 @@ from elasticsearch.exceptions import TransportError
 from flask import request, jsonify
 
 
-class UrlArgument:
+class UrlArgValidator:
 
     vocab = str.maketrans({'"': ''})
-    fields = ('id', 'title', 'imdb_rating', 'description', 'director', 'actors', 'writers')
+    fields = ('id', 'title', 'imdb_rating', 'description', 'director', 'actors_names', 'writers_names')
 
     def __init__(self):
         self.args = request.args
-        self.status = 200
+        self.errors = False
 
     def __bool__(self):
         return bool(self.args)
+
+    def __iter__(self):
+        return iter(self.get())
 
     def _extract(self, arg, target=None):
 
@@ -20,12 +23,13 @@ class UrlArgument:
         value = self.args.get(arg, '').strip()
 
         if not value:
-            return False
+            return None
 
         try:
             return target(value)
         except (ValueError, TypeError):
-            return None
+            self.errors = True
+            return False
 
     def get(self):
         """Returns all expected URL arguments"""
@@ -41,12 +45,12 @@ class UrlArgument:
         limit = self._extract('limit', int)
 
         # not set
-        if limit is False:
+        if limit is None:
             return 50
 
         # wrong value
-        if limit < 0 or limit is None:
-            self.status = 422
+        if limit < 0 or limit is False:
+            self.errors = True
             return 50
 
         return limit
@@ -56,12 +60,12 @@ class UrlArgument:
         page = self._extract('page', int)
 
         # not set
-        if page is False:
+        if page is None:
             return 1
 
         # wrong value
-        if page < 1 or page is None:
-            self.status = 422
+        if page < 1 or page is False:
+            self.errors = True
             return 1
 
         return page
@@ -99,14 +103,14 @@ class UrlArgument:
         field = self._extract('sort')
 
         # not set
-        if field is False:
+        if field is None:
             return 'imdb_rating'
 
         field = field.translate(self.vocab)
 
         # wrong value
         if field not in self.fields:
-            self.status = 422
+            self.errors = True
             return False
 
         return field
@@ -116,14 +120,14 @@ class UrlArgument:
         value = self._extract('sort_order')
 
         # not set
-        if value is False:
+        if value is None:
             return 'desc'
 
         order = value.translate(self.vocab)
 
         # wrong value
         if order not in ('asc', 'desc'):
-            self.status = 422
+            self.errors = True
             return False
 
         return order
