@@ -15,7 +15,6 @@ api = Blueprint('api', __name__)
 def movies():
     """Searches appropriate movies"""
 
-    status = 200
     args = UrlArgValidator()
 
     # No arguments set
@@ -24,15 +23,11 @@ def movies():
 
     # Arguments have wrong values
     if args.errors:
-        return jsonify(args.validation_details()), 422
+        return args.validation_details(), 422
 
     result = get_movies(es, *args)
 
-    # No results for the query
-    if not result:
-        status = 404
-
-    return result, status
+    return result, (200 if result else 404)
 
 
 @api.route('movies/<movie_id>', methods=['GET'])

@@ -17,7 +17,7 @@ def catch(view):
         try:
             response = view(*args, **kwargs)
         except Exception as e:
-            logger.debug(e.args)
+            logger.critical(e.args)
             response = 'Internal server error', 500
         finally:
             return response

@@ -9,8 +9,8 @@ class UrlArgValidator:
 
     def __init__(self):
         self.args = request.args
-        self.values = self._get()
         self.errors = []
+        self.values = self._get()
 
     def __bool__(self):
         return bool(self.args)
