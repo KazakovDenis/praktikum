@@ -1,21 +1,22 @@
 from elasticsearch.exceptions import TransportError
-from flask import request, jsonify
+from flask import Response, request, jsonify
 
 
 class UrlArgValidator:
 
     vocab = str.maketrans({'"': ''})
-    fields = ('id', 'title', 'imdb_rating', 'description', 'director', 'actors_names', 'writers_names')
+    fields = ('id', 'title', 'imdb_rating')    # 'description', 'director', 'actors_names', 'writers_names'
 
     def __init__(self):
         self.args = request.args
-        self.errors = False
+        self.values = self._get()
+        self.errors = []
 
     def __bool__(self):
         return bool(self.args)
 
     def __iter__(self):
-        return iter(self.get())
+        return iter(self.values)
 
     def _extract(self, arg: str, target: type = None):
         """Extracts data from URL argument into expected type
@@ -35,17 +36,34 @@ class UrlArgValidator:
         try:
             return target(value)
         except (ValueError, TypeError):
-            self.errors = True
             return False
 
-    def get(self):
+    def _get(self):
         """Returns all expected URL arguments"""
+        self.errors.clear()
         return (
             self.search(),
             self.limit(),
             self.page(),
             self.sort()
         )
+
+    def validation_details(self) -> Response:
+        """Returns result of argument validation"""
+
+        details = {}
+
+        if self.errors:
+            details["detail"] = [
+                {
+                    "loc": self.errors,
+                    # todo: msg & type
+                    "msg": "value is not a valid integer",
+                    "type": "type_error.integer"
+                }
+            ]
+
+        return jsonify(details)
 
     def limit(self):
         """Returns limit param to ES query"""
@@ -57,7 +75,7 @@ class UrlArgValidator:
 
         # wrong value
         if limit < 0 or limit is False:
-            self.errors = True
+            self.errors.append('limit')
             return 50
 
         return limit
@@ -72,7 +90,7 @@ class UrlArgValidator:
 
         # wrong value
         if page < 1 or page is False:
-            self.errors = True
+            self.errors.append('page')
             return 1
 
         return page
@@ -87,8 +105,8 @@ class UrlArgValidator:
             query["query"] = {
                 "multi_match": {
                     "query": contained_text,
-                    "fields": ["title"],  # ["title", "description"],
-                    # "fuzziness": "auto"
+                    "fields": ["title", "description", "actors_names", "writers_names", "director"],
+                    "fuzziness": "auto"
                 }
             }
 
@@ -117,7 +135,7 @@ class UrlArgValidator:
 
         # wrong value
         if field not in self.fields:
-            self.errors = True
+            self.errors.append('sort')
             return False
 
         return field
@@ -134,13 +152,13 @@ class UrlArgValidator:
 
         # wrong value
         if order not in ('asc', 'desc'):
-            self.errors = True
+            self.errors.append('sort_order')
             return False
 
         return order
 
 
-def get_movies(client, query=None, limit=None, page=1, sort=None):
+def get_movies(client, query=None, limit=None, page=1, sort=None) -> Response:
     """Looks for movies are relative to a query"""
 
     size = limit or 50

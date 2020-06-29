@@ -24,7 +24,7 @@ def movies():
 
     # Arguments have wrong values
     if args.errors:
-        return jsonify([]), 422
+        return jsonify(args.validation_details()), 422
 
     result = get_movies(es, *args)
 
