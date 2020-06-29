@@ -2,7 +2,8 @@ from elasticsearch.exceptions import NotFoundError
 from flask import Blueprint, jsonify, request
 
 from ..app import es, logger
-from .helpers import UrlArgValidator, get_movies
+from ..utils import catch
+from .utils import UrlArgValidator, get_movies
 
 
 api = Blueprint('api', __name__)
@@ -10,6 +11,7 @@ api = Blueprint('api', __name__)
 
 @api.route('movies', methods=['GET'])
 @api.route('movies/', methods=['GET'])
+@catch
 def movies():
     """Searches appropriate movies"""
 
@@ -34,6 +36,7 @@ def movies():
 
 
 @api.route('movies/<movie_id>', methods=['GET'])
+@catch
 def movie_detail(movie_id):
     """Looks for an info by movie id"""
     logger.info(f'{request.method} request FROM: {request.remote_addr}')
