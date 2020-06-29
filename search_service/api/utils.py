@@ -111,7 +111,7 @@ class UrlArgValidator:
 
         # not set
         if field is None:
-            return 'imdb_rating'
+            return 'id'
 
         field = field.translate(self.vocab)
 
@@ -128,7 +128,7 @@ class UrlArgValidator:
 
         # not set
         if value is None:
-            return 'desc'
+            return 'asc'
 
         order = value.translate(self.vocab)
 
