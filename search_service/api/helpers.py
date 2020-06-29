@@ -17,8 +17,15 @@ class UrlArgValidator:
     def __iter__(self):
         return iter(self.get())
 
-    def _extract(self, arg, target=None):
-
+    def _extract(self, arg: str, target: type = None):
+        """Extracts data from URL argument into expected type
+        :param arg: URL argument
+        :param target: expected type
+        :returns:
+            - value of target type if the argument is correct
+            - None if no argument set
+            - False if the argument has incorrect value
+        """
         target = target or str
         value = self.args.get(arg, '').strip()
 
