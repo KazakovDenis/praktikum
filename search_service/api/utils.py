@@ -3,6 +3,7 @@ from flask import Response, request, jsonify
 
 
 class UrlArgValidator:
+    # todo: doc
 
     vocab = str.maketrans({'"': ''})
     fields = ('id', 'title', 'imdb_rating')    # 'description', 'director', 'actors_names', 'writers_names'
@@ -163,7 +164,7 @@ def get_movies(client, query=None, limit=None, page=1, sort=None) -> Response:
 
     size = limit or 50
     from_ = size * (page - 1) or None
-    sort = sort or 'imdb_rating:desc'
+    sort = sort or 'id:asc'
 
     try:
         response = client.search(
