@@ -9,7 +9,6 @@ from .utils import UrlArgValidator, get_movies
 api = Blueprint('api', __name__)
 
 
-@api.route('movies', methods=['GET'])
 @api.route('movies/', methods=['GET'])
 @catch
 def movies():
@@ -34,12 +33,14 @@ def movies():
 @catch
 def movie_detail(movie_id):
     """Looks for an info by movie id"""
+
     logger.info(f'{request.method} request FROM: {request.remote_addr}')
+    response, status = 'Movie not found', 404
 
     try:
         response = es.get('movies', movie_id)['_source']
-        return jsonify(response), 200
-
+        status = 200
     except NotFoundError:
         logger.debug(f'Movie with id = {movie_id} not found')
-        return jsonify('Movie not found'), 404
+
+    return jsonify(response), status
