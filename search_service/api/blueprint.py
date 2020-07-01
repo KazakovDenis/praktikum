@@ -38,7 +38,9 @@ def movie_detail(movie_id):
     response, status = 'Movie not found', 404
 
     try:
-        response = es.get('movies', movie_id)['_source']
+        response = es.get(
+            'movies', movie_id, _source_excludes=['actors_names', 'writers_names']
+        )['_source']
         status = 200
     except NotFoundError:
         logger.debug(f'Movie with id = {movie_id} not found')
