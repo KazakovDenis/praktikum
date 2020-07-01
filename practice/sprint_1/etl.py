@@ -2,6 +2,7 @@ from json import loads as json_loads
 from os.path import join
 from re import search as re_search
 from sqlite3 import connect, Connection
+from typing import List
 
 from elasticsearch import Elasticsearch
 from elasticsearch.helpers import bulk
@@ -23,32 +24,6 @@ def get_movies_ids(db: Connection) -> str:
         yield record[0]
 
     cursor.close()
-
-
-def get_writers_names(db: Connection, movie_data: dict) -> str:
-    """Extracts the movie writers from DB
-
-    :param db: database connection instance
-    :param movie_data: data from db
-    :return: a str with writers names
-    """
-
-    writers_data = movie_data.get('writers') or '[]'
-    writers_ids = map(
-        lambda w: str(w.get('id', '')),
-        json_loads(writers_data)
-    )
-    ids_str = "', '".join(writers_ids)
-
-    if ids_str:
-        query = f"SELECT group_concat(name, ', ') FROM writers WHERE id IN ('{ids_str}')"
-        cursor = db.execute(query)
-        writers_names = cursor.fetchone()[0]
-        cursor.close()
-    else:
-        writers_names = ''
-
-    return writers_names
 
 
 def get_movie_data(db: Connection, movie_id: str) -> dict:
@@ -101,6 +76,47 @@ def get_movie_data(db: Connection, movie_id: str) -> dict:
     return raw_data
 
 
+def get_writers(db: Connection, movie_data: dict) -> List[dict]:
+    """Extracts the movie writers from DB
+
+    :param db: database connection instance
+    :param movie_data: data from db
+    :return: data with writers ids and names
+    """
+
+    writers_data = movie_data.get('writers') or '[]'
+    writers_ids = map(
+        lambda w: str(w.get('id', '')),
+        json_loads(writers_data)
+    )
+    ids_str = "', '".join(writers_ids)
+    writers = []
+
+    if ids_str:
+        query = f"SELECT * FROM writers WHERE id IN ('{ids_str}')"
+        cursor = db.execute(query)
+        writers = [
+            {'id': record[0], 'name': record[1]} for record in cursor.fetchall()
+        ]
+        cursor.close()
+
+    return writers
+
+
+def get_names(data: List[dict]) -> str:
+    """Extracts names from actors / writers data"""
+    name_iter = map(lambda r: r.get('name', ''), data)
+    return ', '.join(name_iter)
+
+
+def get_list_from_str(value: str) -> list:
+    """Returns a list of clean values from str"""
+    if value == 'N/A':
+        return []
+
+    return value.split(', ')
+
+
 # Transform
 def convert_movie_data(db: Connection, data: dict) -> dict:
     """Converts the movie data to be uploaded to ElasticSearch server
@@ -114,12 +130,16 @@ def convert_movie_data(db: Connection, data: dict) -> dict:
     rating = float(tmp.group()) if tmp else 0.0
 
     actors = json_loads(data.get('actors') or '[]')
-    writers = json_loads(data.get('writers') or '[]')
-    writers_names = get_writers_names(db, data)
+    director = get_list_from_str(data.get('director', ''))
+    genre = get_list_from_str(data.get('genre', ''))
+    writers = get_writers(db, data)
+    writers_names = get_names(writers)
 
     data.update({
         'imdb_rating': rating,
         'actors': actors,
+        'director': director,
+        'genre': genre,
         'writers': writers,
         'writers_names': writers_names,
     })
