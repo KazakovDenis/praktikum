@@ -98,6 +98,7 @@ def get_writers(db: Connection, movie_data: dict) -> List[dict]:
         writers = [
             {'id': record[0], 'name': record[1]} for record in cursor.fetchall()
         ]
+        writers.sort(key=lambda w: w['id'])
         cursor.close()
 
     return writers
@@ -129,7 +130,7 @@ def convert_movie_data(db: Connection, data: dict) -> dict:
     tmp = re_search(r'\d+.\d+', str(data.get('imdb_rating')))
     rating = float(tmp.group()) if tmp else 0.0
 
-    actors = json_loads(data.get('actors') or '[]')
+    actors = json_loads(data.get('actors') or '[]').sort(key=lambda w: w['id'])
     actors_names = data.get('actors_names') if data.get('actors_names') != 'N/A' else ''
     director = get_list_from_str(data.get('director', ''))
     genre = get_list_from_str(data.get('genre', ''))
