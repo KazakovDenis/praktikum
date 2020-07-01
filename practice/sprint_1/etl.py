@@ -7,7 +7,7 @@ from typing import List
 from elasticsearch import Elasticsearch
 from elasticsearch.helpers import bulk
 
-from common.config import DB_ADDRESS, ES_HOSTS, JSON_DIR
+from common import DB_ADDRESS, ES_HOSTS, JSON_DIR
 
 
 # Extract
@@ -201,4 +201,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-

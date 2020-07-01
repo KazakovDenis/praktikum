@@ -1,18 +1,27 @@
 # Search service
   
 ## Installation
-Clone this repository then install dependencies:
+Create and activate virtual environment
+```shell script
+python -m venv venv && source venv/bin/activate
+```
+Clone this repository and then install dependencies:
 ```shell script
 pip install -r search_service/requirements/production.txt
 ```
-  
-## Usage
-Execute to run Elasticsearch server from a docker container:
+
+## Preparation
+Execute the command below to run Elasticsearch server from a docker container:
 ```shell script
 docker run --name elastic -d --rm -p 9200:9200 -e "discovery.type=single-node" -v es_data:/usr/share/elasticsearch/data docker.elastic.co/elasticsearch/elasticsearch:7.7.0
 ``` 
+Create and fill ES index with db data
+```shell script
+python -m practice.sprint_1.etl
+```
 
-Execute to run the application:
+## Usage
+Execute the command below to run the application:
 ```shell script
 python -m search_service.manage runserver
 ``` 
