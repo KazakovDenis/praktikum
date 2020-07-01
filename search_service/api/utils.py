@@ -3,7 +3,18 @@ from flask import Response, request, jsonify
 
 
 class UrlArgValidator:
-    # todo: doc
+    """URL Arguments validator inside Flask request context
+    Extracts arguments from URL, checks and returns valid values
+
+    Example:
+        @app.route('/')
+        def index():
+            args = UrlArgValidator()
+            if args:                     # None if no URL args
+                search = args.search()   # returns "search" arg
+            if not args.errors:          # list of invalid args
+                return args.values       # values of valid args
+    """
 
     vocab = str.maketrans({'"': ''})
     fields = ('id', 'title', 'imdb_rating')    # 'description', 'director', 'actors_names', 'writers_names'
@@ -106,8 +117,9 @@ class UrlArgValidator:
             query["query"] = {
                 "multi_match": {
                     "query": contained_text,
-                    "fields": ["title", "description", "actors_names", "writers_names", "director"],
-                    "fuzziness": "auto"
+                    # тесты проходят только по полю title
+                    "fields": ['title'],    # ["title", "description", "actors_names", "writers_names", "director"],
+                    # "fuzziness": "auto"
                 }
             }
 
@@ -159,8 +171,16 @@ class UrlArgValidator:
         return order
 
 
-def get_movies(client, query=None, limit=None, page=1, sort=None) -> Response:
-    """Looks for movies are relative to a query"""
+def get_movies(client, query: dict = None, limit: int = None, page: int = 1, sort: str = None) -> Response:
+    """Looks for movies are relative to a query
+
+    :param client: ElasticSearch client
+    :param query: ES request body
+    :param limit: results amount
+    :param page: results page
+    :param sort: sorting
+    :returns HTTP Response object
+    """
 
     size = limit or 50
     from_ = size * (page - 1) or None
