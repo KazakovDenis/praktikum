@@ -15,7 +15,7 @@ def get_movies_ids(db: Connection) -> str:
     """Extracts ids of all movies from DB
 
     :param db: database connection instance
-    :return: ids of a movies
+    :return: ids of movies
     """
 
     cursor = db.execute('SELECT id FROM movies')

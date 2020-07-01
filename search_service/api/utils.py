@@ -22,6 +22,7 @@ class UrlArgValidator:
     def __init__(self):
         self.args = request.args
         self.errors = []
+        self.excess = None
         self.values = self._get()
 
     def __bool__(self):
@@ -50,6 +51,7 @@ class UrlArgValidator:
     def _get(self):
         """Returns all expected URL arguments"""
         self.errors.clear()
+        self.excess = set(self.args) - self.expected
         return {
             'query': self.query(),
             'limit': self.limit(),
@@ -57,8 +59,20 @@ class UrlArgValidator:
             'sort': self.sort(),
         }
 
-    def unsupported(self):
+    def unsupported(self) -> Response:
         """Checks for unsupported arguments"""
+
+        details = {}
+
+        if self.excess:
+            details["detail"] = [
+                {
+                    "loc": list(self.excess),
+                    "msg": "Unexpected URL arguments",
+                }
+            ]
+
+        return jsonify(details)
 
     def validation_details(self) -> Response:
         """Returns result of argument validation"""

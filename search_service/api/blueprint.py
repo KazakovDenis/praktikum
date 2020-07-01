@@ -12,7 +12,7 @@ api = Blueprint('api', __name__)
 @api.route('movies/', methods=['GET'])
 @catch
 def movies():
-    """Searches appropriate movies"""
+    """Looks for relevant movies"""
 
     args = UrlArgValidator()
 
@@ -22,7 +22,7 @@ def movies():
     if args.errors:
         return args.validation_details(), 422
 
-    if args.extra:
+    if args.excess:
         return args.unsupported(), 400
 
     result = get_movies(es, **args.values)
@@ -33,7 +33,7 @@ def movies():
 @api.route('movies/<movie_id>', methods=['GET'])
 @catch
 def movie_detail(movie_id):
-    """Looks for an info by movie id"""
+    """Looks for all information about the movie by id"""
 
     logger.info(f'{request.method} request FROM: {request.remote_addr}')
     response, status = 'Movie not found', 404
