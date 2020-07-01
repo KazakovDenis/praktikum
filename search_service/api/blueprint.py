@@ -16,15 +16,16 @@ def movies():
 
     args = UrlArgValidator()
 
-    # No arguments set
     if not args:
-        return get_movies(es)
+        return get_movies(es), 200
 
-    # Arguments have wrong values
     if args.errors:
         return args.validation_details(), 422
 
-    result = get_movies(es, *args)
+    if args.extra:
+        return args.unsupported(), 400
+
+    result = get_movies(es, **args.values)
 
     return result, (200 if result else 404)
 

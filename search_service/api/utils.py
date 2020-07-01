@@ -16,8 +16,8 @@ class UrlArgValidator:
                 return args.values       # values of valid args
     """
 
-    vocab = str.maketrans({'"': ''})
-    fields = ('id', 'title', 'imdb_rating')    # 'description', 'director', 'actors_names', 'writers_names'
+    doc_fields = ('id', 'title', 'imdb_rating')
+    expected = {'limit', 'page', 'search', 'sort', 'sort_order'}
 
     def __init__(self):
         self.args = request.args
@@ -26,9 +26,6 @@ class UrlArgValidator:
 
     def __bool__(self):
         return bool(self.args)
-
-    def __iter__(self):
-        return iter(self.values)
 
     def _extract(self, arg: str, target: type = None):
         """Extracts data from URL argument into expected type
@@ -53,12 +50,15 @@ class UrlArgValidator:
     def _get(self):
         """Returns all expected URL arguments"""
         self.errors.clear()
-        return (
-            self.search(),
-            self.limit(),
-            self.page(),
-            self.sort()
-        )
+        return {
+            'query': self.query(),
+            'limit': self.limit(),
+            'page': self.page(),
+            'sort': self.sort(),
+        }
+
+    def unsupported(self):
+        """Checks for unsupported arguments"""
 
     def validation_details(self) -> Response:
         """Returns result of argument validation"""
@@ -107,23 +107,26 @@ class UrlArgValidator:
 
         return page
 
-    def search(self):
+    def query(self):
         """Returns a body to ES query"""
-
         query = {}
-        contained_text = self._extract('search')
+        contained_text = self.search()
 
         if contained_text:
             query["query"] = {
                 "multi_match": {
                     "query": contained_text,
                     # тесты проходят только по полю title
-                    "fields": ['title'],    # ["title", "description", "actors_names", "writers_names", "director"],
+                    "fields": ['title'],  # ["title", "description", "actors_names", "writers_names", "director"],
                     # "fuzziness": "auto"
                 }
             }
 
         return query
+
+    def search(self):
+        """Returns 'search' argument value"""
+        return self._extract('search')
 
     def sort(self):
         """Returns sort param to ES query"""
@@ -144,10 +147,10 @@ class UrlArgValidator:
         if field is None:
             return 'id'
 
-        field = field.translate(self.vocab)
+        field = field.replace('"', '')
 
         # wrong value
-        if field not in self.fields:
+        if field not in self.doc_fields:
             self.errors.append('sort')
             return False
 
@@ -161,7 +164,7 @@ class UrlArgValidator:
         if value is None:
             return 'asc'
 
-        order = value.translate(self.vocab)
+        order = value.replace('"', '')
 
         # wrong value
         if order not in ('asc', 'desc'):
