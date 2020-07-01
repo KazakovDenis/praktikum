@@ -1,7 +1,9 @@
 from json import loads as json_loads
 from multiprocessing import Process
-from requests import get as http_get
 from time import sleep
+
+from pytest import mark
+from requests import get as http_get
 
 from search_service.manage import *
 
@@ -21,9 +23,14 @@ def teardown_module():
     server.join()
 
 
-def test_service_running():
-    """Checks that index page returns HTTP 200"""
-    response = http_get(BASE_URL)
+@mark.parametrize('url', [
+    BASE_URL,
+    BASE_URL + '/api/v1/movies/',
+    BASE_URL + '/api/v1/movies/tt0112270',
+])
+def test_service_running(url):
+    """Checks that url returns HTTP 200"""
+    response = http_get(url)
     assert response.status_code == 200
 
 
@@ -32,9 +39,3 @@ def test_client_info():
     response = http_get(BASE_URL + '/client/info')
     payload = json_loads(response.content)
     assert 'python-requests' in payload.get('user_agent', '')
-
-
-def test_api_v1_video():
-    """Check that API/v1 endpoint works correctly"""
-    response = http_get(BASE_URL + '/api/v1/video')
-    assert response.status_code == 200
