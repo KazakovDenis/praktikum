@@ -130,6 +130,7 @@ def convert_movie_data(db: Connection, data: dict) -> dict:
     rating = float(tmp.group()) if tmp else 0.0
 
     actors = json_loads(data.get('actors') or '[]')
+    actors_names = data.get('actors') if data.get('actors') != 'N/A' else ''
     director = get_list_from_str(data.get('director', ''))
     genre = get_list_from_str(data.get('genre', ''))
     writers = get_writers(db, data)
@@ -138,6 +139,7 @@ def convert_movie_data(db: Connection, data: dict) -> dict:
     data.update({
         'imdb_rating': rating,
         'actors': actors,
+        'actors_names': actors_names,
         'director': director,
         'genre': genre,
         'writers': writers,
