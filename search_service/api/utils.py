@@ -1,4 +1,4 @@
-from typing import Union
+from typing import Sequence
 
 from elasticsearch.exceptions import TransportError
 from flask import Response, request, jsonify
@@ -17,6 +17,7 @@ class UrlArgValidator:
             if not args.errors:          # list of invalid args
                 return args.values       # values of valid args
     """
+    # todo: available fields
     default_fields = ('id', 'title', 'imdb_rating')
     supported = {
         'limit': {'msg': 'Limit should be greater than 0', 'type': 'integer'},
@@ -26,10 +27,7 @@ class UrlArgValidator:
         'sort_order': {'msg': 'Sort order should be one of the following: asc, desc', 'type': 'string'}
     }
 
-    def __init__(self,
-                 expected: Union[tuple, list] = tuple(supported),
-                 sort_fields: Union[tuple, list] = default_fields
-                 ):
+    def __init__(self, expected: Sequence = tuple(supported), sort_fields: Sequence = default_fields):
         self.args = request.args
         self.expected = expected
 
