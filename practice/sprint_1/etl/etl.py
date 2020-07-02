@@ -7,7 +7,11 @@ from typing import List
 from elasticsearch import Elasticsearch
 from elasticsearch.helpers import bulk
 
-from common import DB_ADDRESS, ES_HOSTS, JSON_DIR
+from common import ES_HOSTS, ETL_DIR
+
+
+CR_INDEX_SCR = join(ETL_DIR, 'create_index.json')
+DB_ADDRESS = join(ETL_DIR, 'db.sqlite')
 
 
 # Extract
@@ -152,9 +156,7 @@ def convert_movie_data(db: Connection, data: dict) -> dict:
 def create_index(es_client: Elasticsearch):
     """Creates the movie index in ElasticSearch server"""
 
-    script = join(JSON_DIR, 'create_index.json')
-
-    with open(script, 'rb') as file:
+    with open(CR_INDEX_SCR, 'r') as file:
         body = json_loads(file.read())
 
     return es_client.indices.create('movies', body, ignore=400)

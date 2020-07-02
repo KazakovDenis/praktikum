@@ -1,4 +1,4 @@
-# Search service
+# Full text search service
   
 ## Installation
 Create and activate virtual environment
@@ -17,7 +17,7 @@ docker run --name elastic -d --rm -p 9200:9200 -e "discovery.type=single-node" -
 ``` 
 Create and fill ES index with db data
 ```shell script
-python -m practice.sprint_1.etl
+python -m practice.sprint_1.etl.etl
 ```
 
 ## Usage
