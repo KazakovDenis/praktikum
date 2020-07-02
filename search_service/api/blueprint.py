@@ -36,6 +36,11 @@ def movie_detail(movie_id):
     """Looks for all information about the movie by id"""
 
     logger.info(f'{request.method} request FROM: {request.remote_addr}')
+
+    args = UrlArgValidator(expected=())
+    if args:
+        return args.unsupported(), 400
+
     response, status = 'Movie not found', 404
 
     try:

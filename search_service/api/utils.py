@@ -1,3 +1,5 @@
+from typing import Union
+
 from elasticsearch.exceptions import TransportError
 from flask import Response, request, jsonify
 
@@ -15,12 +17,25 @@ class UrlArgValidator:
             if not args.errors:          # list of invalid args
                 return args.values       # values of valid args
     """
+    default_fields = ('id', 'title', 'imdb_rating')
+    supported = {
+        'limit': {'msg': 'Limit should be greater than 0', 'type': 'integer'},
+        'page': {'msg': 'Page should be greater than 0', 'type': 'integer'},
+        'search': {'msg': 'Search maybe any string', 'type': 'string'},
+        'sort': {'msg': '', 'type': 'string'},
+        'sort_order': {'msg': 'Sort order should be one of the following: asc, desc', 'type': 'string'}
+    }
 
-    doc_fields = ('id', 'title', 'imdb_rating')
-    expected = {'limit', 'page', 'search', 'sort', 'sort_order'}
-
-    def __init__(self):
+    def __init__(self,
+                 expected: Union[tuple, list] = tuple(supported),
+                 sort_fields: Union[tuple, list] = default_fields
+                 ):
         self.args = request.args
+        self.expected = expected
+
+        self.doc_fields = sort_fields
+        self.supported['sort']['msg'] = f'Sort field should be one of the following: {", ".join(self.doc_fields)}'
+
         self.errors = []
         self.excess = None
         self.values = self._get()
@@ -51,7 +66,7 @@ class UrlArgValidator:
     def _get(self):
         """Returns all expected URL arguments"""
         self.errors.clear()
-        self.excess = set(self.args) - self.expected
+        self.excess = set(self.args) - set(self.expected)
         return {
             'query': self.query(),
             'limit': self.limit(),
@@ -62,13 +77,13 @@ class UrlArgValidator:
     def unsupported(self) -> Response:
         """Checks for unsupported arguments"""
 
-        details = {}
+        details = {'detail': 'success'}
 
         if self.excess:
-            details["detail"] = [
+            details['detail'] = [
                 {
-                    "loc": list(self.excess),
-                    "msg": "Unexpected URL arguments",
+                    'loc': list(self.excess),
+                    'msg': 'Unexpected URL arguments',
                 }
             ]
 
@@ -77,16 +92,11 @@ class UrlArgValidator:
     def validation_details(self) -> Response:
         """Returns result of argument validation"""
 
-        details = {}
+        details = {'detail': 'success'}
 
         if self.errors:
-            details["detail"] = [
-                {
-                    "loc": self.errors,
-                    # todo: msg & type
-                    "msg": "value is not a valid integer",
-                    "type": "type_error.integer"
-                }
+            details['detail'] = [
+                {'loc': arg, **self.supported[arg]} for arg in self.errors
             ]
 
         return jsonify(details)

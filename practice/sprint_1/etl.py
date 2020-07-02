@@ -93,12 +93,11 @@ def get_writers(db: Connection, movie_data: dict) -> List[dict]:
     writers = []
 
     if ids_str:
-        query = f"SELECT * FROM writers WHERE id IN ('{ids_str}')"
+        query = f"SELECT * FROM writers WHERE id IN ('{ids_str}') ORDER BY id ASC"
         cursor = db.execute(query)
         writers = [
             {'id': record[0], 'name': record[1]} for record in cursor.fetchall()
         ]
-        writers.sort(key=lambda w: w['id'])
         cursor.close()
 
     return writers
