@@ -102,16 +102,13 @@ class Matrix:
 
         return value
 
-    def __str__(self):
+    def __repr__(self):
         """
         Метод должен выводить матрицу в виде:
         1 2 3\nNone None None\nNone None None
         То есть между элементами строки должны быть пробелы, а строки отделены \n
         """
-        result = []
-        for row in range(len(self.matrix)):
-            result.append(' '.join(str(x) for x in self.matrix[row]))
-
+        result = map(lambda row: ' '.join(map(str, row)), self.matrix)
         return '\n'.join(result)
 
 
