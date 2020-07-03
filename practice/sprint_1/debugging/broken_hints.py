@@ -49,14 +49,16 @@ class Matrix:
 
         return new_matrix
 
-    def find_first_none_position(self, matrix) -> (int, int):
+    def find_first_none_position(self) -> (int, int):
         """
         Находим позицию в матрице первого None элемента. По сути он обозначает конец данных матрицы.
         """
-        for row in range(len(matrix)):
-            for column in range(len(matrix)):
-                if matrix[row][column] is None:
-                    return row, column
+        for row_number, row in enumerate(self.matrix):
+            try:
+                return row_number, row.index(None)
+            except ValueError:
+                continue
+        return 0, 0
 
     def find_last_not_none_position(self, matrix):
         """
