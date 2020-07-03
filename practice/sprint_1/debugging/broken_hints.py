@@ -1,3 +1,4 @@
+from itertools import takewhile
 from typing import Optional, List
 
 
@@ -58,16 +59,25 @@ class Matrix:
                 return row_number, row.index(None)
             except ValueError:
                 continue
+
         return 0, 0
 
-    def find_last_not_none_position(self, matrix):
+    def find_last_not_none_position(self) -> (int, int):
         """
         Находим позицию последнего не None элемента матрицы.
         """
-        for row in range(len(matrix) - 1, -1, -1):
-            for column in range(len(matrix) - 1, -1, -1):
-                if matrix[row][column] is not None:
-                    return row, column
+        row_number = len(self.matrix) - 1
+
+        for row in self.matrix[::-1]:
+            not_none = tuple(takewhile(lambda x: x is not None, row[::-1]))
+
+            if not_none:
+                col_number = len(row) - len(not_none)
+                return row_number, col_number
+
+            row_number -= 1
+
+        return 0, 0
 
     def add_item(self, element: Optional = None):
         """
