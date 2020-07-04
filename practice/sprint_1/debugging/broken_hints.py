@@ -49,8 +49,8 @@ class Matrix:
 
         # проверяем, что значения в последних строках / столбцах is None
         if not (
-            all(self.matrix[self.size]) and
-            all(tuple(zip(*self.matrix))[-1])
+            any(self.matrix[-1]) and
+            any(map(lambda row: row[-1], self.matrix))
         ):
             return self._scale_down()
         else:
@@ -168,4 +168,14 @@ class Matrix:
 
 
 if __name__ == '__main__':
-    pass
+    m = Matrix()
+    m.add_item(123)
+    m.add_item(425)
+    m.matrix[2][2] = 1
+
+    while True:
+        try:
+            code = eval(input('>>> '))
+        except Exception as e:
+            code = e
+        print(code)
