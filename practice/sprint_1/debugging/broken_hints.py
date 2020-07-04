@@ -1,5 +1,5 @@
 from itertools import takewhile
-from typing import Optional, List
+from typing import Optional, List, Any
 
 
 MatrixType = List[List[Optional[object]]]
@@ -10,13 +10,12 @@ class Matrix:
     Код нашего коллеги аналитика
     Очень медленный и тяжелый для восприятия. Ваша задача сделать его быстрее и проще для понимания.
     """
-    cell = [None]
 
     def __init__(self):
-        self.matrix = [self.cell]
+        self.matrix = [[None]]
 
     @property
-    def size(self):
+    def size(self) -> int:
         return len(self.matrix)
 
     def _scale_down(self) -> MatrixType:
@@ -25,16 +24,17 @@ class Matrix:
             lambda row: row[:-1], self.matrix[:-1]
         )
         self.matrix = list(tmp)
-
         return self.matrix
 
     def _scale_up(self) -> MatrixType:
         """Увеличивает размер матрицы"""
-        self.matrix.append(self.cell * self.size)
+        tmp = self.matrix.copy()
+        tmp.append([None] * self.size)
 
-        for row in self.matrix:
+        for row in tmp:
             row.append(None)
 
+        self.matrix = tmp
         return self.matrix
 
     def matrix_scale(self, scale_up: bool) -> MatrixType:
@@ -56,45 +56,6 @@ class Matrix:
         else:
             raise ValueError('Невозможно уменьшить размер матрицы, есть непустые элементы')
 
-    def _matrix_scale(self, scale_up: bool) -> MatrixType:
-        """
-        Функция отвечает за создание увеличенной или уменьшенной матрицы.
-        Режим работы зависит от параметра scale_up. На выходе получаем расширенную матрицу.
-        :param scale_up: если True, то увеличиваем матрицу, иначе уменьшаем
-        :return: измененная матрица
-        """
-        former_size = len(self.matrix)
-        size = former_size + 1 if scale_up else former_size - 1
-        new_matrix = [[None for _ in range(size)] for _ in range(size)]
-        linear_matrix = [None for _ in range(size ** 2)]
-
-        # Раскладываем элементы матрицы к "плоскому" массиву
-        row = 0
-        column = 0
-        for index in range(len(linear_matrix)):
-            item = self.matrix[row][column]
-            linear_matrix[index] = item
-
-            column += 1
-            if column == former_size:
-                column = 0
-                row += 1
-
-            if row == former_size:
-                break
-
-        # Записываем элементы в новую матрицу
-        iterator = iter(linear_matrix)
-        try:
-            for row in range(len(new_matrix)):
-                for column in range(len(new_matrix)):
-                    new_matrix[row][column] = next(iterator)
-
-        except StopIteration:
-            return new_matrix
-
-        return new_matrix
-
     def find_first_none_position(self) -> (int, int):
         """
         Находим позицию в матрице первого None элемента. По сути он обозначает конец данных матрицы.
@@ -114,10 +75,10 @@ class Matrix:
         row_number = self.size - 1
 
         for row in self.matrix[::-1]:
-            not_none = tuple(takewhile(lambda x: x is not None, row[::-1]))
+            not_none = list(takewhile(lambda x: x is None, row[::-1]))
 
-            if not_none:
-                col_number = len(row) - len(not_none)
+            if not_none != row:
+                col_number = len(row) - len(not_none) - 1
                 return row_number, col_number
 
             row_number -= 1
@@ -132,28 +93,31 @@ class Matrix:
         if element is None:
             return
 
-        last_row, last_column = self.find_first_none_position()
+        row, col = self.find_first_none_position()
 
-        if last_row * self.size + last_column >= (self.size - 1) ** 2:
-            self.matrix = self.matrix_scale(scale_up=True)
-            last_row, last_column = self.find_first_none_position()
+        if row * self.size + col >= (self.size - 1) ** 2:
+            self.matrix_scale(scale_up=True)
+            row, col = self.find_first_none_position()
 
-        self.matrix[last_row][last_column] = element
+        self.matrix[row][col] = element
 
-    def pop(self):
+    def pop(self) -> Any:
         """
         Удалить последний значащий элемент из массива.
         Если значащих элементов меньше (size - 1) * (size - 2) уменьшить матрицу.
         """
         if self.size == 1:
-            raise IndexError()
+            raise IndexError('Достигнут минимальный размер матрицы')
 
-        last_row, last_column = self.find_last_not_none_position()
-        value = self.matrix[last_row][last_column]
-        self.matrix[last_row][last_column] = None
+        row, col = self.find_last_not_none_position()
 
-        if last_row * self.size + last_column <= (self.size - 1) * (self.size - 2):
-            self.matrix = self.matrix_scale(scale_up=False)
+        value = self.matrix[row][col]
+        self.matrix[row][col] = None
+
+        try:
+            self.matrix_scale(scale_up=False)
+        except ValueError as msg:
+            print(msg)
 
         return value
 
@@ -168,14 +132,4 @@ class Matrix:
 
 
 if __name__ == '__main__':
-    m = Matrix()
-    m.add_item(123)
-    m.add_item(425)
-    m.matrix[2][2] = 1
-
-    while True:
-        try:
-            code = eval(input('>>> '))
-        except Exception as e:
-            code = e
-        print(code)
+    pass
