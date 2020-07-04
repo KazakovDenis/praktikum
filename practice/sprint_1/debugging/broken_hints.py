@@ -2,23 +2,68 @@ from itertools import takewhile
 from typing import Optional, List
 
 
+MatrixType = List[List[Optional[object]]]
+
+
 class Matrix:
     """
     Код нашего коллеги аналитика
     Очень медленный и тяжелый для восприятия. Ваша задача сделать его быстрее и проще для понимания.
     """
-    def __init__(self):
-        self.matrix = [[None]]
+    cell = [None]
 
-    def matrix_scale(self, matrix: List[List[Optional[object]]], scale_up: bool) -> List[List[Optional[object]]]:
+    def __init__(self):
+        self.matrix = [self.cell]
+
+    @property
+    def size(self):
+        return len(self.matrix)
+
+    def _scale_down(self) -> MatrixType:
+        """Уменьшает размер матрицы"""
+        tmp = map(
+            lambda row: row[:-1], self.matrix[:-1]
+        )
+        self.matrix = list(tmp)
+
+        return self.matrix
+
+    def _scale_up(self) -> MatrixType:
+        """Увеличивает размер матрицы"""
+        self.matrix.append(self.cell * self.size)
+
+        for row in self.matrix:
+            row.append(None)
+
+        return self.matrix
+
+    def matrix_scale(self, scale_up: bool) -> MatrixType:
         """
         Функция отвечает за создание увеличенной или уменьшенной матрицы.
         Режим работы зависит от параметра scale_up. На выходе получаем расширенную матрицу.
-        :param matrix: исходная матрица
         :param scale_up: если True, то увеличиваем матрицу, иначе уменьшаем
         :return: измененная матрица
         """
-        former_size = len(matrix)
+        if scale_up:
+            return self._scale_up()
+
+        # проверяем, что значения в последних строках / столбцах is None
+        if not (
+            all(self.matrix[self.size]) and
+            all(tuple(zip(*self.matrix))[-1])
+        ):
+            return self._scale_down()
+        else:
+            raise ValueError('Невозможно уменьшить размер матрицы, есть непустые элементы')
+
+    def _matrix_scale(self, scale_up: bool) -> MatrixType:
+        """
+        Функция отвечает за создание увеличенной или уменьшенной матрицы.
+        Режим работы зависит от параметра scale_up. На выходе получаем расширенную матрицу.
+        :param scale_up: если True, то увеличиваем матрицу, иначе уменьшаем
+        :return: измененная матрица
+        """
+        former_size = len(self.matrix)
         size = former_size + 1 if scale_up else former_size - 1
         new_matrix = [[None for _ in range(size)] for _ in range(size)]
         linear_matrix = [None for _ in range(size ** 2)]
@@ -27,7 +72,7 @@ class Matrix:
         row = 0
         column = 0
         for index in range(len(linear_matrix)):
-            item = matrix[row][column]
+            item = self.matrix[row][column]
             linear_matrix[index] = item
 
             column += 1
@@ -66,7 +111,7 @@ class Matrix:
         """
         Находим позицию последнего не None элемента матрицы.
         """
-        row_number = len(self.matrix) - 1
+        row_number = self.size - 1
 
         for row in self.matrix[::-1]:
             not_none = tuple(takewhile(lambda x: x is not None, row[::-1]))
@@ -87,12 +132,11 @@ class Matrix:
         if element is None:
             return
 
-        size = len(self.matrix)
-        last_row, last_column = self.find_first_none_position(self.matrix)
+        last_row, last_column = self.find_first_none_position()
 
-        if last_row * size + last_column >= (size - 1) ** 2:
-            self.matrix = self.matrix_scale(self.matrix, scale_up=True)
-            last_row, last_column = self.find_first_none_position(self.matrix)
+        if last_row * self.size + last_column >= (self.size - 1) ** 2:
+            self.matrix = self.matrix_scale(scale_up=True)
+            last_row, last_column = self.find_first_none_position()
 
         self.matrix[last_row][last_column] = element
 
@@ -101,16 +145,15 @@ class Matrix:
         Удалить последний значащий элемент из массива.
         Если значащих элементов меньше (size - 1) * (size - 2) уменьшить матрицу.
         """
-        size = len(self.matrix)
-        if size == 1:
+        if self.size == 1:
             raise IndexError()
 
-        last_row, last_column = self.find_last_not_none_position(self.matrix)
+        last_row, last_column = self.find_last_not_none_position()
         value = self.matrix[last_row][last_column]
         self.matrix[last_row][last_column] = None
 
-        if last_row * size + last_column <= (size - 1) * (size - 2):
-            self.matrix = self.matrix_scale(self.matrix, scale_up=False)
+        if last_row * self.size + last_column <= (self.size - 1) * (self.size - 2):
+            self.matrix = self.matrix_scale(scale_up=False)
 
         return value
 
