@@ -1,5 +1,5 @@
-from typing import Optional
 from cProfile import run as profile
+from typing import Optional
 
 
 class Matrix:
