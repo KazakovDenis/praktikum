@@ -27,7 +27,7 @@ def movies():
 
     result = get_movies(es, **args.values)
 
-    return result, (200 if result else 404)
+    return result, (200 if result.json else 404)
 
 
 @api.route('movies/<movie_id>', methods=['GET'])
