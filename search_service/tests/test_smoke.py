@@ -33,8 +33,8 @@ def client():
     ('/api/v1/movies/tt0112270?page=1', 400),
     ('/api/v1/movies/tt0112270?wrong=argument', 400),
 ])
-def test_service_running(client, url, status):
-    """Checks that url returns HTTP 200"""
+def test_status(client, url, status):
+    """Checks expected URL statuses"""
     with client:
         response = client.get(url)
         assert response.status_code == status
