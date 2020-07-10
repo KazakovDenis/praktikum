@@ -17,7 +17,7 @@ docker run --name elastic -d --rm -p 9200:9200 -e "discovery.type=single-node" -
 ``` 
 Create and fill ES index with db data
 ```shell script
-python -m practice.sprint_1.etl.etl
+python -m practice.sprint_1.etl.etl_elastic
 ```
 
 ## Usage
@@ -32,7 +32,23 @@ Install dependencies before
 ```shell script
 pip install -r search_service/requirements/test.txt
 ```
-then execute the command below to run tests
+
+### Unit testing
+Execute the command below to run unit tests
 ```shell script
 python -m pytest
 ```
+
+### Coverage
+Execute the command below to check test coverage
+```shell script
+coverage run -m pytest && coverage report -m && coverage html
+```
+and open `htmlcov/index.html` in a browser
+
+### Load testing
+Run the application then execute the command below to run load tests
+```shell script
+docker run --name vegeta --rm --network host -v /path/to/search_service/tests/load:/vegeta peterevans/vegeta:latest sh -c "vegeta attack -targets /vegeta/targets.txt -timeout 2s -duration 10s -rate 30/1s | vegeta report > /vegeta/result.txt"
+```
+and check results out in `search_service/tests/load/result.txt`
