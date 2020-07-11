@@ -1,11 +1,22 @@
-import sqlite3
+from json import loads as json_loads
+from os.path import join
+from re import search as re_search
+from sqlite3 import connect, Connection
 from typing import List
+
+import requests as http
+
+from common import ETL_DIR, ES_HOSTS
+
+
+CR_INDEX_SCR = join(ETL_DIR, 'create_index.json')
+DB_ADDRESS = join(ETL_DIR, 'db.sqlite')
 
 
 class ESLoader:
 
     def __init__(self, url: str):
-        self.url = url
+        self.url = url[0] if isinstance(url, list) else url
 
     def load_to_es(self, records: List[dict], index_name: str):
         """
@@ -46,9 +57,22 @@ class ESLoader:
 
 class ETL:
 
-    def __init__(self, conn: sqlite3.Connection, es_loader: ESLoader):
+    def __init__(self, conn: Connection, es_loader: ESLoader):
         self.es_loader = es_loader
         self.conn = conn
+
+    def create_index(self, index_name: str):
+        """Creates the movie index in ElasticSearch server"""
+
+        with open(CR_INDEX_SCR, 'r') as file:
+            body = json_loads(file.read())
+
+        url = self.es_loader.url + '/' + index_name
+
+        response = http.put(url, body)
+        # ingore 400
+
+        return response
 
     def load(self, index_name: str):
         """
@@ -57,3 +81,12 @@ class ETL:
         :param index_name: название индекса, в который будут грузиться данные
         """
         # Ваша реализация ETL здесь
+
+
+db = connect(DB_ADDRESS)
+loader = ESLoader(ES_HOSTS)
+etl = ETL(db, loader)
+
+
+if __name__ == '__main__':
+    etl.load('movies')
