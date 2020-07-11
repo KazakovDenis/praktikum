@@ -37,8 +37,7 @@ class VegetaTargetsWriter:
         :param file: a file with Vegeta targets
         """
         with open(file, 'w') as file:
-            for target in self.targets:
-                file.writelines(target)
+            file.writelines(self.targets)
 
     def get_headers(self, target: VegetaTarget) -> str:
         """Converts target headers to string"""
