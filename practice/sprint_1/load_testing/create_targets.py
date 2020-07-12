@@ -2,6 +2,7 @@
 A module with a creator of targets for Vegeta
 """
 from dataclasses import dataclass
+from random import shuffle
 from string import Template
 from typing import AnyStr, Dict, Iterator, Union
 
@@ -30,14 +31,16 @@ class VegetaTargetsWriter:
         :param target_list: a list of VegetaTarget objects
         :return: an iterator of targets
         """
-        return (self.to_str(target) for target in target_list)
+        str_targets = [self.to_str(target) for target in target_list]
+        shuffle(str_targets)
+        return iter(str_targets)
 
     def create(self, file: str):
         """Starts extracting targets and writes it to a file
         :param file: a file with Vegeta targets
         """
-        with open(file, 'w') as file:
-            file.writelines(self.targets)
+        with open(file, 'w') as f:
+            f.writelines(self.targets)
 
     def get_headers(self, target: VegetaTarget) -> str:
         """Converts target headers to string"""
