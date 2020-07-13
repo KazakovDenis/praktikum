@@ -2,10 +2,12 @@ from abc import ABC, abstractmethod
 from contextlib import closing
 from dataclasses import asdict, dataclass
 from json import loads as json_loads
+from math import ceil
 from os.path import join
 from re import search as re_search
 from sqlite3 import connect, Connection
 from typing import List, Iterator
+from urllib.parse import urljoin
 
 import requests as http
 
@@ -65,10 +67,7 @@ class MovieDataExtractor(BaseExtractor):
         query = 'SELECT id FROM movies'
 
         with closing(self.db.execute(query)) as cursor:
-            return map(
-                lambda r: r[0],
-                cursor.fetchall()
-            )
+            return (r[0] for r in cursor.fetchall())
 
     def get_movie_data(self, movie_id: str) -> dict:
         """Extracts all information about the movie from DB
@@ -182,24 +181,20 @@ class MovieDataExtractor(BaseExtractor):
         })
         return data
 
-    def extract(self):
-        """Returns data prepared to load to ElasticSearch"""
+    def extract_one(self, movie_id: str):
+        """Returns one movie data prepared to load to ElasticSearch"""
+        data = self.get_movie_data(movie_id)
+        return self.transform(data)
 
-        movie_list = []
-
-        for movie_id in self.get_movies_ids():
-            data = self.get_movie_data(movie_id)
-            es_data = self.transform(data)
-            movie_list.append(es_data)
-
-        return movie_list
+    def extract(self) -> List[dict]:
+        """Returns all movies data prepared to load to ElasticSearch"""
+        return [self.extract_one(movie_id) for movie_id in self.get_movies_ids()]
 
 
 class ESLoader:
 
     def __init__(self, url: str):
         self.url = url
-        self.client = http.session()
 
     def create_index(self, index_name: str, payload_file: str):
         """Creates the movie index in ElasticSearch server"""
@@ -207,12 +202,20 @@ class ESLoader:
         with open(payload_file, 'r') as file:
             body = json_loads(file.read())
 
-        url = self.url + '/' + index_name
+        url = urljoin(self.url, index_name)
+        return http.put(url, body)
 
-        response = http.put(url, body)
-        # ingore 400
+    @staticmethod
+    def get_bulk(records: List[dict], index_name: str):
+        """Подготовливает данные для bulk-запроса в ElasticSearch"""
 
-        return response
+        payload = ''
+
+        for record in records:
+            action = {'index': {'_index': index_name, '_id': record['id']}}
+            payload += f'{action}\n{record}\n'
+
+        return payload
 
     def load_to_es(self, records: List[dict], index_name: str, bulk_len: int = 50):
         """
@@ -250,16 +253,16 @@ class ESLoader:
         :param bulk_len: размер списка данных, единоразово отправляемых в ElasticSearch
         """
 
-        cache, with_errors = [], []
-        packets = len(records) + 1 // bulk_len
-        bulk_template = f'{index_name}'
+        with_errors = []
+        packets = ceil(len(records) // bulk_len)
 
         with http.session() as client:
+            client.headers.update({'Content-Type': 'application/x-ndjson'})
 
             for i in range(packets):
                 start, end = i * bulk_len, (i + 1) * bulk_len
-                bulk = records[start:end]
-                response = client.put(self.url, data=bulk)
+                bulk = self.get_bulk(records[start:end], index_name)
+                response = client.post(self.url, data=bulk)
                 errors = response.json().get('errors')
                 with_errors.extend(errors)
 
