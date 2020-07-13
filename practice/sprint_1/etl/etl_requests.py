@@ -1,3 +1,4 @@
+from abc import ABC, abstractmethod
 from contextlib import closing
 from dataclasses import asdict, dataclass
 from json import loads as json_loads
@@ -11,6 +12,7 @@ import requests as http
 from common import ETL_DIR, ES_HOSTS
 
 
+INDEX = 'movies'
 CR_INDEX_SCR = join(ETL_DIR, 'create_index.json')
 DB_ADDRESS = join(ETL_DIR, 'db.sqlite')
 
@@ -41,69 +43,20 @@ class Movie:
     writers_names: str
 
 
-class ESLoader:
-
-    def __init__(self, url: str):
-        self.url = url[0] if isinstance(url, list) else url
-        self.client = http.session()
-
-    def load_to_es(self, records: List[dict], index_name: str, bulk_len: int = 50):
-        """
-        Метод для сохранения записей в ElasticSearch.
-        :param records: список данных на запись, который должен быть следующего вида:
-        [
-            {
-                "id": "tt123456",
-                "genre": ["Action", "Horror"],
-                "writers": [
-                    {
-                        "id": "123456",
-                        "name": "Great Divider"
-                    },
-                    ...
-                ],
-                "actors": [
-                    {
-                        "id": "123456",
-                        "name": "Poor guy"
-                    },
-                    ...
-                ],
-                "actors_names": ["Poor guy", ...],
-                "writers_names": [ "Great Divider", ...],
-                "imdb_rating": 8.6,
-                "title": "A long time ago ...",
-                "director": ["Daniel Switch", "Carmen B."],
-                "description": "Long and boring description"
-            }
-        ]
-        Если значения нет или оно N/A, то нужно менять на None
-        В списках значение N/A надо пропускать
-        :param index_name: название индекса, куда будут сохраняться данные
-        :param bulk_len: размер списка данных, единоразово отправляемых в ElasticSearch
-        """
-
-        cache, with_errors = [], []
-        packets = len(records) + 1 // bulk_len
-        bulk_template = f'{index_name}'
-
-        with http.session() as client:
-
-            for i in range(packets):
-                start, end = i * bulk_len, (i + 1) * bulk_len
-                bulk = records[start:end]
-                response = client.put(self.url, data=bulk)
-                errors = response.json().get('errors')
-                with_errors.extend(errors)
-
-        return with_errors
-
-
-class MovieDataExtractor:
-    """The class to extract movie data from a database"""
+class BaseExtractor(ABC):
 
     def __init__(self, db_conn: Connection):
         self.db = db_conn
+
+    @abstractmethod
+    def extract(self): ...
+
+    @abstractmethod
+    def transform(self, data): ...
+
+
+class MovieDataExtractor(BaseExtractor):
+    """The class to extract movie data from a database"""
 
     def get_movies_ids(self) -> Iterator:
         """Extracts ids of all movies from DB
@@ -202,7 +155,7 @@ class MovieDataExtractor:
 
         return value.split(', ')
 
-    def convert_movie_data(self, data: dict) -> dict:
+    def transform(self, data: dict) -> dict:
         """Converts the movie data to be uploaded to ElasticSearch server
         :param data: the movie data
         :return: prepared movie data
@@ -229,24 +182,24 @@ class MovieDataExtractor:
         })
         return data
 
-    def get_prepared_to_es(self):
+    def extract(self):
         """Returns data prepared to load to ElasticSearch"""
 
         movie_list = []
 
         for movie_id in self.get_movies_ids():
             data = self.get_movie_data(movie_id)
-            es_data = self.convert_movie_data(data)
+            es_data = self.transform(data)
             movie_list.append(es_data)
 
         return movie_list
 
 
-class ETL:
+class ESLoader:
 
-    def __init__(self, conn: Connection, es_loader: ESLoader):
-        self.es_loader = es_loader
-        self.conn = conn
+    def __init__(self, url: str):
+        self.url = url
+        self.client = http.session()
 
     def create_index(self, index_name: str, payload_file: str):
         """Creates the movie index in ElasticSearch server"""
@@ -254,34 +207,91 @@ class ETL:
         with open(payload_file, 'r') as file:
             body = json_loads(file.read())
 
-        url = self.es_loader.url + '/' + index_name
+        url = self.url + '/' + index_name
 
         response = http.put(url, body)
         # ingore 400
 
         return response
 
-    def load(self, index_name: str, records):
+    def load_to_es(self, records: List[dict], index_name: str, bulk_len: int = 50):
         """
-        Основной метод для нашего ETL.
+        Метод для сохранения записей в ElasticSearch.
+        :param records: список данных на запись, который должен быть следующего вида:
+        [
+            {
+                "id": "tt123456",
+                "genre": ["Action", "Horror"],
+                "writers": [
+                    {
+                        "id": "123456",
+                        "name": "Great Divider"
+                    },
+                    ...
+                ],
+                "actors": [
+                    {
+                        "id": "123456",
+                        "name": "Poor guy"
+                    },
+                    ...
+                ],
+                "actors_names": ["Poor guy", ...],
+                "writers_names": [ "Great Divider", ...],
+                "imdb_rating": 8.6,
+                "title": "A long time ago ...",
+                "director": ["Daniel Switch", "Carmen B."],
+                "description": "Long and boring description"
+            }
+        ]
+        Если значения нет или оно N/A, то нужно менять на None
+        В списках значение N/A надо пропускать
+        :param index_name: название индекса, куда будут сохраняться данные
+        :param bulk_len: размер списка данных, единоразово отправляемых в ElasticSearch
+        """
+
+        cache, with_errors = [], []
+        packets = len(records) + 1 // bulk_len
+        bulk_template = f'{index_name}'
+
+        with http.session() as client:
+
+            for i in range(packets):
+                start, end = i * bulk_len, (i + 1) * bulk_len
+                bulk = records[start:end]
+                response = client.put(self.url, data=bulk)
+                errors = response.json().get('errors')
+                with_errors.extend(errors)
+
+        return with_errors
+
+
+class ETL:
+    """Механизм ETL. Получает данные из БД и загружает в ElasticSearch"""
+
+    def __init__(self, extractor: BaseExtractor, loader: ESLoader):
+        self.extractor = extractor
+        self.loader = loader
+
+    def load(self, index_name: str):
+        """Основной метод для нашего ETL.
         Обязательно используйте метод load_to_es, это будет проверяться
         :param index_name: название индекса, в который будут грузиться данные
-        :param records: данные для загрузки в индекс
         """
-        # es = ElasticSearch(ES_HOSTS)
-        # if not es.ping():
-        #     raise ConnectionError('ElasticSearch server is not available')
+        if http.get(self.loader.url).status_code != 200:
+            raise ConnectionError('ElasticSearch server is not available')
 
-        not_uploaded = self.es_loader.load_to_es(records, index_name)
+        records = self.extractor.extract()
+        not_uploaded = self.loader.load_to_es(records, index_name)
         return not_uploaded
 
 
 if __name__ == '__main__':
-    db = connect(DB_ADDRESS)
-    loader = ESLoader(ES_HOSTS)
-    extractor = MovieDataExtractor(db)
-    movies = extractor.get_prepared_to_es()
 
-    etl = ETL(db, loader)
-    etl.create_index('movies', CR_INDEX_SCR)
-    etl.load('movies', movies)
+    with connect(DB_ADDRESS) as db:
+        es_loader = ESLoader(ES_HOSTS[0])
+        es_loader.create_index(INDEX, CR_INDEX_SCR)
+        movie_extractor = MovieDataExtractor(db)
+
+        etl = ETL(movie_extractor, es_loader)
+        etl.load(INDEX)
