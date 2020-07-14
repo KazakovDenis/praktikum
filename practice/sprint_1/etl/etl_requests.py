@@ -6,7 +6,7 @@ from math import ceil
 from os.path import join
 from re import search as re_search
 from sqlite3 import connect, Connection
-from typing import List, Iterator
+from typing import List, Iterator, Tuple
 from urllib.parse import urljoin
 
 import requests as http
@@ -35,12 +35,12 @@ class Writer:
 class Movie:
     id: str
     title: str
+    genre: List[str]
     imdb_rating: float
     description: str
-    genre: List[str]
+    director: List[str]
     actors: List[Actor]
     actors_names: str
-    director: List[str]
     writers: List[Writer]
     writers_names: str
 
@@ -69,108 +69,144 @@ class MovieDataExtractor(BaseExtractor):
         with closing(self.db.execute(query)) as cursor:
             return (r[0] for r in cursor.fetchall())
 
-    def get_movie_data(self, movie_id: str) -> dict:
+    def get_movie(self, movie_id: str) -> Movie:
+        """Returns a movie by id"""
+        movie_data = self._extract_raw_data(movie_id)
+        return Movie(**movie_data)
+
+    def get_actors(self, movie_id: str) -> Tuple[Actor]:
+        """Returns tuple of movie actors"""
+        return tuple(
+            Actor(**record) for record in self._extract_actors(movie_id)
+        )
+
+    def get_writers(self, movie_id: str) -> Tuple[Writer]:
+        """Returns tuple of movie writers"""
+        movie_data = self._extract_raw_data(movie_id)
+        return tuple(
+            Writer(**record) for record in self._extract_writers(movie_data)
+        )
+
+    def extract_one(self, movie_id: str) -> dict:
+        """Returns one movie data prepared to load to ElasticSearch"""
+        data = self._extract_raw_data(movie_id)
+        return self.transform(data)
+
+    def extract(self) -> List[dict]:
+        """Returns all movies data prepared to load to ElasticSearch"""
+        return [self.extract_one(movie_id) for movie_id in self.get_movies_ids()]
+
+    def _extract_raw_data(self, movie_id: str) -> dict:
         """Extracts all information about the movie from DB
         :param movie_id: movie id from DB
         :return: dict with the movie info
         """
 
         query = """\
-        SELECT 
-           m.imdb_rating, 
-           m.genre, 
-           m.title, 
-           m.plot as description, 
-           m.director, 
-           group_concat(a.name, ', ') as actors_names,
-           null as writers_names,
-           '[' || group_concat(
-               json_object('id', a.id, 'name', a.name)
-           ) || ']' as actors,
-           m.writers
-        FROM movies m
-        JOIN movie_actors ma ON m.id = ma.movie_id
-        JOIN actors a        ON a.id = ma.actor_id
-        WHERE m.id = ?
-        GROUP BY m.id;
-        """
+            SELECT 
+                   imdb_rating, 
+                   genre, 
+                   title, 
+                   plot as description, 
+                   director, 
+                   writers
+                FROM movies
+                WHERE id = ?
+                GROUP BY id;
+            """
 
-        cursor = self.db.execute(query, [movie_id])
-        rating, genre, title, plot, director, \
-            actors_names, writers_names, actors, writers = cursor.fetchone()
-        cursor.close()
+        with closing(self.db.execute(query, [movie_id])) as cursor:
+            rating, genre, title, description, director, writers = cursor.fetchone()
 
         raw_data = {
-            "_id": movie_id,
             "id": movie_id,
             "imdb_rating": rating,
-            "genre": genre,
+            "genre": genre or '',
             "title": title,
-            "description": plot,
-            "director": director,
-            "actors_names": actors_names,
-            "writers_names": writers_names,
-            "actors": actors,
+            "description": description,
+            "director": director or '',
+            "actors_names": '',
+            "writers_names": '',
+            "actors": '',
             "writers": writers
         }
-
         return raw_data
 
-    def get_writers(self, movie_data: dict) -> List[dict]:
+    def _extract_actors(self, movie_id: str) -> List[dict]:
+        """Extracts the movie writers from DB
+        :param movie_id: movie id from DB
+        :return: data with writers ids and names
+        """
+        query = """\
+            SELECT a.id, a.name
+                FROM actors a
+                JOIN movie_actors ma ON a.id = ma.actor_id
+                JOIN movies m        ON m.id = ma.movie_id
+                WHERE m.id = ?
+                ORDER BY a.id ASC;
+            """
+
+        with closing(self.db.execute(query, [movie_id])) as cursor:
+            actors = [
+                {'id': r[0], 'name': r[1] if r[1] != 'N/A' else None}
+                for r in cursor.fetchall()
+            ]
+        return actors
+
+    def _extract_writers(self, movie_data: dict) -> List[dict]:
         """Extracts the movie writers from DB
         :param movie_data: data from db
         :return: data with writers ids and names
         """
-
-        writers_data = movie_data.get('writers') or '[]'
         writers_ids = map(
-            lambda w: str(w.get('id', '')),
-            json_loads(writers_data)
+            lambda writer: str(writer.get('id', '')),
+            json_loads(movie_data.get('writers') or '[]')
         )
         ids_str = "', '".join(writers_ids)
         writers = []
 
         if ids_str:
-            query = f"SELECT * FROM writers WHERE id IN ('{ids_str}') ORDER BY id ASC"
-            cursor = self.db.execute(query)
-            writers = [
-                {'id': record[0], 'name': record[1]} for record in cursor.fetchall()
-            ]
-            cursor.close()
-
+            query = f"SELECT * FROM writers WHERE id IN ('{ids_str}') ORDER BY id ASC;"
+            with closing(self.db.execute(query)) as cursor:
+                writers = [
+                    {'id': r[0], 'name': r[1] if r[1] != 'N/A' else None}
+                    for r in cursor.fetchall()
+                ]
         return writers
 
     @staticmethod
-    def get_names(data: List[dict]) -> str:
+    def _get_names(data: List[dict]) -> str:
         """Extracts names from actors / writers data"""
         name_iter = map(lambda r: r.get('name', ''), data)
         return ', '.join(name_iter)
 
     @staticmethod
-    def get_list_from_str(value: str) -> list:
+    def _get_list_from_str(value: str) -> list:
         """Returns a list of clean values from str"""
         if value == 'N/A':
             return []
 
         return value.split(', ')
 
-    def transform(self, data: dict) -> dict:
+    def transform(self, movie: dict) -> dict:
         """Converts the movie data to be uploaded to ElasticSearch server
-        :param data: the movie data
+        :param movie: Movie object with raw data
         :return: prepared movie data
         """
 
-        tmp = re_search(r'\d+.\d+', str(data.get('imdb_rating')))
+        tmp = re_search(r'\d+.\d+', str(movie['imdb_rating']))
         rating = float(tmp.group()) if tmp else 0.0
 
-        actors = json_loads(data.get('actors') or '[]').sort(key=lambda w: w['id'])
-        actors_names = data.get('actors_names') if data.get('actors_names') != 'N/A' else ''
-        director = self.get_list_from_str(data.get('director', ''))
-        genre = self.get_list_from_str(data.get('genre', ''))
-        writers = self.get_writers(data)
-        writers_names = self.get_names(writers)
+        director = self._get_list_from_str(movie['director'])
+        genre = self._get_list_from_str(movie['genre'])
 
-        data.update({
+        actors = self._extract_actors(movie['id'])
+        actors_names = self._get_names(actors)
+
+        writers = self._extract_writers(movie)
+        writers_names = self._get_names(writers)
+
+        movie.update({
             'imdb_rating': rating,
             'actors': actors,
             'actors_names': actors_names,
@@ -179,16 +215,7 @@ class MovieDataExtractor(BaseExtractor):
             'writers': writers,
             'writers_names': writers_names,
         })
-        return data
-
-    def extract_one(self, movie_id: str):
-        """Returns one movie data prepared to load to ElasticSearch"""
-        data = self.get_movie_data(movie_id)
-        return self.transform(data)
-
-    def extract(self) -> List[dict]:
-        """Returns all movies data prepared to load to ElasticSearch"""
-        return [self.extract_one(movie_id) for movie_id in self.get_movies_ids()]
+        return movie
 
 
 class ESLoader:
