@@ -123,7 +123,7 @@ class MovieDataExtractor(BaseExtractor):
             "imdb_rating": rating,
             "genre": genre or '',
             "title": title,
-            "description": description,
+            "description": description if description != 'N/A' else None,
             "director": director or '',
             "actors_names": '',
             "writers_names": '',
