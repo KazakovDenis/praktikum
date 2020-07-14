@@ -36,7 +36,7 @@
             "russian_stemmer"
           ]
         }
-    }
+      }
     }
   },
   "mappings": {
@@ -53,7 +53,12 @@
       },
       "title": {
         "type": "text",
-        "analyzer": "ru_en"
+        "analyzer": "ru_en",
+        "fields": {
+          "raw": {
+            "type":  "keyword"
+          }
+        }
       },
       "description": {
         "type": "text",
@@ -79,9 +84,9 @@
             "type": "keyword"
           },
           "name": {
-          "type": "text",
-          "analyzer": "ru_en"
-        }
+            "type": "text",
+            "analyzer": "ru_en"
+          }
         }
       },
       "writers": {

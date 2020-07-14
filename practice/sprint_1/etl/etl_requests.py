@@ -9,7 +9,7 @@ from sqlite3 import connect, Connection
 from typing import List, Iterator, Tuple
 from urllib.parse import urljoin
 
-import requests as http
+import requests
 
 from common import ETL_DIR, ES_HOSTS
 
@@ -177,7 +177,7 @@ class MovieDataExtractor(BaseExtractor):
     @staticmethod
     def _get_names(data: List[dict]) -> str:
         """Extracts names from actors / writers data"""
-        name_iter = map(lambda r: r.get('name', ''), data)
+        name_iter = map(lambda r: r.get('name') or '', data)
         return ', '.join(name_iter)
 
     @staticmethod
@@ -223,17 +223,18 @@ class ESLoader:
     def __init__(self, url: str):
         self.url = url
 
-    def create_index(self, index_name: str, payload_file: str):
+    def create_index(self, index_name: str, payload_file: str) -> requests.Response:
         """Creates the movie index in ElasticSearch server"""
 
         with open(payload_file, 'r') as file:
             body = json_loads(file.read())
 
         url = urljoin(self.url, index_name)
-        return http.put(url, body)
+        headers = {'Content-Type': 'application/json'}
+        return requests.put(url, body, headers=headers)
 
     @staticmethod
-    def get_bulk(records: List[dict], index_name: str):
+    def get_bulk(records: List[dict], index_name: str) -> str:
         """Подготовливает данные для bulk-запроса в ElasticSearch"""
 
         payload = ''
@@ -244,7 +245,7 @@ class ESLoader:
 
         return payload
 
-    def load_to_es(self, records: List[dict], index_name: str, bulk_len: int = 50):
+    def load_to_es(self, records: List[dict], index_name: str, bulk_len: int = 100) -> List[dict]:
         """
         Метод для сохранения записей в ElasticSearch.
         :param records: список данных на запись, который должен быть следующего вида:
@@ -280,17 +281,19 @@ class ESLoader:
         :param bulk_len: размер списка данных, единоразово отправляемых в ElasticSearch
         """
 
-        with_errors = []
         packets = ceil(len(records) // bulk_len)
+        url = urljoin(self.url, '_bulk?filter_path=items.*.error')
+        headers = {'Content-Type': 'application/x-ndjson'}
+        with_errors = []
 
-        with http.session() as client:
-            client.headers.update({'Content-Type': 'application/x-ndjson'})
+        with requests.session() as client:
+            client.headers.update(headers)
 
             for i in range(packets):
                 start, end = i * bulk_len, (i + 1) * bulk_len
                 bulk = self.get_bulk(records[start:end], index_name)
-                response = client.post(self.url, data=bulk)
-                errors = response.json().get('errors')
+                response = client.post(url, data=bulk)
+                errors = response.json()
                 with_errors.extend(errors)
 
         return with_errors
@@ -308,7 +311,7 @@ class ETL:
         Обязательно используйте метод load_to_es, это будет проверяться
         :param index_name: название индекса, в который будут грузиться данные
         """
-        if http.get(self.loader.url).status_code != 200:
+        if requests.get(self.loader.url).status_code != 200:
             raise ConnectionError('ElasticSearch server is not available')
 
         records = self.extractor.extract()
