@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from contextlib import closing
-from dataclasses import asdict, dataclass
-from json import loads as json_loads
+from dataclasses import dataclass
+import json
 from math import ceil
 from os.path import join
 from re import search as re_search
@@ -160,7 +160,7 @@ class MovieDataExtractor(BaseExtractor):
         """
         writers_ids = map(
             lambda writer: str(writer.get('id', '')),
-            json_loads(movie_data.get('writers') or '[]')
+            json.loads(movie_data.get('writers') or '[]')
         )
         ids_str = "', '".join(writers_ids)
         writers = []
@@ -226,8 +226,8 @@ class ESLoader:
     def create_index(self, index_name: str, payload_file: str) -> requests.Response:
         """Creates the movie index in ElasticSearch server"""
 
-        with open(payload_file, 'r') as file:
-            body = json_loads(file.read())
+        with open(payload_file, 'rb') as file:
+            body = file.read()
 
         url = urljoin(self.url, index_name)
         headers = {'Content-Type': 'application/json'}
@@ -240,8 +240,10 @@ class ESLoader:
         payload = ''
 
         for record in records:
-            action = {'index': {'_index': index_name, '_id': record['id']}}
-            payload += f'{action}\n{record}\n'
+            head = {'index': {'_index': index_name, '_id': record['id']}}
+            head = json.dumps(head)
+            record = json.dumps(record)
+            payload += f'{head}\n{record}\n'
 
         return payload
 
@@ -281,19 +283,18 @@ class ESLoader:
         :param bulk_len: размер списка данных, единоразово отправляемых в ElasticSearch
         """
 
-        packets = ceil(len(records) // bulk_len)
+        packets = ceil(len(records) / bulk_len)
         url = urljoin(self.url, '_bulk?filter_path=items.*.error')
         headers = {'Content-Type': 'application/x-ndjson'}
         with_errors = []
 
         with requests.session() as client:
-            client.headers.update(headers)
 
             for i in range(packets):
                 start, end = i * bulk_len, (i + 1) * bulk_len
                 bulk = self.get_bulk(records[start:end], index_name)
-                response = client.post(url, data=bulk)
-                errors = response.json()
+                response = client.post(url, data=bulk, headers=headers)
+                errors = response.json().get('items', [])
                 with_errors.extend(errors)
 
         return with_errors
