@@ -109,6 +109,7 @@ class MovieDataExtractor(BaseExtractor):
                    title, 
                    plot as description, 
                    director, 
+                   writer,
                    writers
                 FROM movies
                 WHERE id = ?
@@ -116,7 +117,7 @@ class MovieDataExtractor(BaseExtractor):
             """
 
         with closing(self.db.execute(query, [movie_id])) as cursor:
-            rating, genre, title, description, director, writers = cursor.fetchone()
+            rating, genre, title, description, director, writer, writers = cursor.fetchone()
 
         raw_data = {
             "id": movie_id,
@@ -128,7 +129,7 @@ class MovieDataExtractor(BaseExtractor):
             "actors_names": '',
             "writers_names": '',
             "actors": '',
-            "writers": writers
+            "writers": writer or json.loads(writers or '[]')
         }
         return raw_data
 
@@ -158,11 +159,17 @@ class MovieDataExtractor(BaseExtractor):
         :param movie_data: data from db
         :return: data with writers ids and names
         """
-        writers_ids = map(
-            lambda writer: str(writer.get('id', '')),
-            json.loads(movie_data.get('writers') or '[]')
-        )
-        ids_str = "', '".join(writers_ids)
+        writers_data = movie_data.get('writers')
+
+        if isinstance(writers_data, list):
+            writers_ids = map(
+                lambda writer: str(writer.get('id', '')),
+                writers_data
+            )
+            ids_str = "', '".join(writers_ids)
+        else:
+            ids_str = writers_data
+
         writers = []
 
         if ids_str:
@@ -210,7 +217,7 @@ class MovieDataExtractor(BaseExtractor):
             'imdb_rating': rating,
             'actors': actors,
             'actors_names': actors_names,
-            'director': director,
+            'director': director or None,
             'genre': genre,
             'writers': writers,
             'writers_names': writers_names,
@@ -235,7 +242,7 @@ class ESLoader:
 
     @staticmethod
     def get_bulk(records: List[dict], index_name: str) -> str:
-        """Подготовливает данные для bulk-запроса в ElasticSearch"""
+        """Prepares records to a bulk request to ElasticSearch"""
 
         payload = ''
 
@@ -248,39 +255,10 @@ class ESLoader:
         return payload
 
     def load_to_es(self, records: List[dict], index_name: str, bulk_len: int = 100) -> List[dict]:
-        """
-        Метод для сохранения записей в ElasticSearch.
-        :param records: список данных на запись, который должен быть следующего вида:
-        [
-            {
-                "id": "tt123456",
-                "genre": ["Action", "Horror"],
-                "writers": [
-                    {
-                        "id": "123456",
-                        "name": "Great Divider"
-                    },
-                    ...
-                ],
-                "actors": [
-                    {
-                        "id": "123456",
-                        "name": "Poor guy"
-                    },
-                    ...
-                ],
-                "actors_names": ["Poor guy", ...],
-                "writers_names": [ "Great Divider", ...],
-                "imdb_rating": 8.6,
-                "title": "A long time ago ...",
-                "director": ["Daniel Switch", "Carmen B."],
-                "description": "Long and boring description"
-            }
-        ]
-        Если значения нет или оно N/A, то нужно менять на None
-        В списках значение N/A надо пропускать
-        :param index_name: название индекса, куда будут сохраняться данные
-        :param bulk_len: размер списка данных, единоразово отправляемых в ElasticSearch
+        """Uploads records to ElasticSearch
+        :param records: data to load
+        :param index_name: name of an index where to load records
+        :param bulk_len: one-time data list size for loading to ElasticSearch
         """
 
         packets = ceil(len(records) / bulk_len)
@@ -294,30 +272,29 @@ class ESLoader:
                 start, end = i * bulk_len, (i + 1) * bulk_len
                 bulk = self.get_bulk(records[start:end], index_name)
                 response = client.post(url, data=bulk, headers=headers)
-                errors = response.json().get('items', [])
-                with_errors.extend(errors)
+                err = response.json().get('items', [])
+                with_errors.extend(err)
 
         return with_errors
 
 
 class ETL:
-    """Механизм ETL. Получает данные из БД и загружает в ElasticSearch"""
+    """Extracts data from a database and loads it to ElasticSearch"""
 
     def __init__(self, extractor: BaseExtractor, loader: ESLoader):
         self.extractor = extractor
         self.loader = loader
 
-    def load(self, index_name: str):
-        """Основной метод для нашего ETL.
-        Обязательно используйте метод load_to_es, это будет проверяться
-        :param index_name: название индекса, в который будут грузиться данные
+    def load(self, index_name: str) -> list:
+        """Loads data to ElasticSearch
+        :param index_name: name of index to load data into
+        :returns upload errors
         """
         if requests.get(self.loader.url).status_code != 200:
             raise ConnectionError('ElasticSearch server is not available')
 
         records = self.extractor.extract()
-        not_uploaded = self.loader.load_to_es(records, index_name)
-        return not_uploaded
+        return self.loader.load_to_es(records, index_name)
 
 
 if __name__ == '__main__':
@@ -328,4 +305,5 @@ if __name__ == '__main__':
         movie_extractor = MovieDataExtractor(db)
 
         etl = ETL(movie_extractor, es_loader)
-        etl.load(INDEX)
+        errors = etl.load(INDEX)
+        print(errors)
