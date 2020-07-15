@@ -1,12 +1,17 @@
 """
 A module with a creator of targets for Vegeta
 """
-from dataclasses import dataclass
+from collections import namedtuple
 from random import shuffle
 from string import Template
-from typing import AnyStr, Dict, Iterator, Union
+from typing import AnyStr, Dict, Union
+from urllib.parse import urlparse
 
 from common import op, SEARCH_SRV_DIR, SEARCH_SRV_URL
+from practice.sprint_1.etl.etl_requests import *
+
+
+ParseResult = namedtuple('ParseResult', 'scheme netloc path params query fragment')
 
 
 @dataclass
@@ -17,13 +22,15 @@ class VegetaTarget:
 
 
 class VegetaTargetsWriter:
+    """Vegeta targets file creator"""
 
-    def __init__(self, netloc: str, target_list: list):
+    def __init__(self, base_url: str, target_list: list):
         """Constructor
-        :param netloc: target's host:port
+        :param base_url: target's base_url
         :param target_list: a list of VegetaTarget objects
         """
-        self.template = Template(f'GET {netloc}$url$headers$body\n\n')
+        self.base_url = base_url
+        self.template = Template(f'GET $url$headers$body\n\n')
         self.targets = self._get_targets(target_list)
 
     def _get_targets(self, target_list: list) -> Iterator:
@@ -54,10 +61,20 @@ class VegetaTargetsWriter:
             raise NotImplementedError('Unable to build targets with non-string body yet')
         return '\n' + target.body
 
+    def get_url(self, target: VegetaTarget) -> str:
+        """Converts url"""
+        parsed = urlparse(target.url)
+
+        if not parsed.netloc:
+            base = urlparse(self.base_url)
+            parsed = ParseResult(base.scheme, base.netloc, *parsed[2:])
+
+        return parsed.geturl()
+
     def to_str(self, target: VegetaTarget) -> str:
         """Converts VegetaTarget object to string"""
         target_str = self.template.substitute(
-            url=target.url,
+            url=self.get_url(target),
             headers=self.get_headers(target),
             body=self.get_body(target)
         )
@@ -65,7 +82,18 @@ class VegetaTargetsWriter:
 
 
 if __name__ == '__main__':
+
+    with connect(DB_ADDRESS) as db:
+        movie_extractor = MovieDataExtractor(db)
+        high_rated = [
+            movie_extractor.get_movie(m_id)
+            for m_id in movie_extractor.get_movies_ids('imdb_rating > 7')
+        ]
+
     targets = []
+    for movie in high_rated:
+        targets.append(VegetaTarget())
+
     filename = op.join(SEARCH_SRV_DIR, 'tests', 'load', 'targets.txt')
     vegeta_writer = VegetaTargetsWriter(SEARCH_SRV_URL, targets)
     vegeta_writer.create(filename)
