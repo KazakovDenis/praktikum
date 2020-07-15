@@ -60,11 +60,15 @@ class BaseExtractor(ABC):
 class MovieDataExtractor(BaseExtractor):
     """The class to extract movie data from a database"""
 
-    def get_movies_ids(self) -> Iterator:
+    def get_movies_ids(self, condition_str: str = None) -> Iterator:
         """Extracts ids of all movies from DB
+        :param condition_str: conditions for SQL's WHERE
         :return: ids of movies
         """
         query = 'SELECT id FROM movies'
+
+        if condition_str:
+            query += ' WHERE ' + self._check_sql(condition_str)
 
         with closing(self.db.execute(query)) as cursor:
             return (r[0] for r in cursor.fetchall())
@@ -180,6 +184,16 @@ class MovieDataExtractor(BaseExtractor):
                     for r in cursor.fetchall()
                 ]
         return writers
+
+    @staticmethod
+    def _check_sql(sql: str) -> str:
+        """Looks for modifying queries"""
+
+        for cmd in ['ALTER', 'DELETE', 'DROP', 'INSERT', 'UPDATE']:
+            if cmd in sql.upper():
+                raise PermissionError('You could not modify this table: "movies"')
+
+        return sql
 
     @staticmethod
     def _get_names(data: List[dict]) -> str:
