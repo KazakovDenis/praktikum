@@ -1,7 +1,8 @@
 """
 A module with a creator of targets for Vegeta
 """
-from random import shuffle
+from abc import ABC, abstractmethod
+from random import choice, randint, shuffle
 from string import Template
 from typing import AnyStr, Dict, Union
 from urllib.parse import urlencode, urlparse, urlunparse
@@ -15,6 +16,92 @@ class VegetaTarget:
     url: str
     headers: Union[Dict[str, str], str] = ''
     body: AnyStr = ''
+
+
+class TargetFactory(ABC):
+    """A class to create VegetaTarget object"""
+
+    def __init__(self, obj, headers: Union[Dict[str, str], str] = '', body: AnyStr = ''):
+        self.source = obj
+        self.headers = headers
+        self.body = body
+        self.params: List[str] = []
+
+    def create(self) -> VegetaTarget:
+        """Creates a target object"""
+        self.update_params()
+
+        url = self._get_url_params()
+        headers = self._get_headers()
+        body = self._get_body()
+
+        return VegetaTarget(url, headers, body)
+
+    @abstractmethod
+    def update_params(self):
+        """Fills self.params to create query string"""
+
+    def _add_random(self, name, values):
+        """Appends random url argument to self.params
+        :param name: a name of URL parameter
+        :param values: values to choose one from
+        """
+        if value := choice(values):
+            arg = urlencode({name: value})
+            self.params.append(arg)
+
+    def _get_body(self) -> str:
+        # not implemented
+        return self.body
+
+    def _get_headers(self) -> str:
+        # not implemented
+        return self.headers
+
+    def _get_url_params(self) -> str:
+        """Returns URL query string"""
+        return '?' + '&'.join(self.params)
+
+
+class MovieTargetFactory(TargetFactory):
+    """A class to create VegetaTarget object from Movie object"""
+
+    def __init__(self, movie: Movie, headers: Union[Dict[str, str], str] = '', body: AnyStr = ''):
+        super().__init__(movie, headers, body)
+
+    def update_params(self):
+        """Fills self.params to create query string"""
+        self.params.clear()
+        self._add_search()
+        self._add_limit()
+        self._add_page()
+        self._add_sort()
+        self._add_sort_order()
+
+    def _add_limit(self):
+        """Adds pages limit argument"""
+        values = (None, 10, 20, 50)
+        self._add_random('limit', values)
+
+    def _add_page(self):
+        """Adds page number argument"""
+        values = (None, 3, 7, 15)
+        self._add_random('page', values)
+
+    def _add_sort(self):
+        """Adds sorting argument"""
+        values = (None, 'id', 'title', 'imdb_rating')
+        self._add_random('sort', values)
+
+    def _add_sort_order(self):
+        """Adds sort order argument"""
+        values = (None, 'asc', 'desc')
+        self._add_random('sort_order', values)
+
+    def _add_search(self):
+        """Adds search argument"""
+        values = (None, self.source.title)
+        self._add_random('search', values)
 
 
 class VegetaTargetsWriter:
@@ -38,7 +125,7 @@ class VegetaTargetsWriter:
         shuffle(str_targets)
         return iter(str_targets)
 
-    def create(self, file: str):
+    def to_file(self, file: str):
         """Starts extracting targets and writes it to a file
         :param file: a file with Vegeta targets
         """
@@ -85,17 +172,22 @@ class VegetaTargetsWriter:
 
 if __name__ == '__main__':
 
+    # getting high rated movies
     with connect(DB_ADDRESS) as db:
-        movie_extractor = MovieDataExtractor(db)
+        extractor = MovieDataExtractor(db)
         high_rated = [
-            movie_extractor.get_movie(m_id)
-            for m_id in movie_extractor.get_movies_ids('imdb_rating > 7')
+            extractor.get_movie(m_id)
+            for m_id in extractor.get_movies_ids('imdb_rating > 7')
         ]
 
+    # creating targets for Vegeta
     targets = []
     for movie in high_rated:
-        targets.append(VegetaTarget())
+        one_movie_targets = [MovieTargetFactory(movie).create() for _ in range(randint(3))]
+        targets.extend(one_movie_targets)
 
+    # writing targets to a file
     filename = op.join(SEARCH_SRV_DIR, 'tests', 'load', 'targets.txt')
-    vegeta_writer = VegetaTargetsWriter(targets, SEARCH_SRV_URL)
-    vegeta_writer.create(filename)
+    base_url = urljoin(SEARCH_SRV_URL, '/api/v1/movies')
+    vegeta_writer = VegetaTargetsWriter(targets, base_url)
+    vegeta_writer.to_file(filename)
