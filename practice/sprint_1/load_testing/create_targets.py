@@ -183,7 +183,7 @@ if __name__ == '__main__':
     # creating targets for Vegeta
     targets = []
     for movie in high_rated:
-        one_movie_targets = [MovieTargetFactory(movie).create() for _ in range(randint(3))]
+        one_movie_targets = [MovieTargetFactory(movie).create() for _ in range(randint(1, 3))]
         targets.extend(one_movie_targets)
 
     # writing targets to a file
