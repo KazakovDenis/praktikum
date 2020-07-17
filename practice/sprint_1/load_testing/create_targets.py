@@ -136,13 +136,21 @@ class VegetaTargetsWriter:
         """Converts target headers to string"""
         if not isinstance(target.headers, str):
             raise NotImplementedError('Unable to build targets with non-string headers yet')
-        return '\n' + target.headers
+
+        if target.headers:
+            return '\n' + target.headers
+
+        return ''
 
     def get_body(self, target: VegetaTarget) -> str:
         """Converts target body to string"""
         if not isinstance(target.body, str):
             raise NotImplementedError('Unable to build targets with non-string body yet')
-        return '\n' + target.body
+
+        if target.body:
+            return '\n' + target.body
+
+        return ''
 
     def get_url(self, target: VegetaTarget) -> str:
         """Converts url"""
