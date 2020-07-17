@@ -1,17 +1,13 @@
 """
 A module with a creator of targets for Vegeta
 """
-from collections import namedtuple
 from random import shuffle
 from string import Template
 from typing import AnyStr, Dict, Union
-from urllib.parse import urlparse
+from urllib.parse import urlencode, urlparse, urlunparse
 
 from common import op, SEARCH_SRV_DIR, SEARCH_SRV_URL
 from practice.sprint_1.etl.etl_requests import *
-
-
-ParseResult = namedtuple('ParseResult', 'scheme netloc path params query fragment')
 
 
 @dataclass
@@ -24,12 +20,12 @@ class VegetaTarget:
 class VegetaTargetsWriter:
     """Vegeta targets file creator"""
 
-    def __init__(self, base_url: str, target_list: list):
+    def __init__(self, target_list: list, base_url: str = None):
         """Constructor
-        :param base_url: target's base_url
         :param target_list: a list of VegetaTarget objects
+        :param base_url: target's base_url
         """
-        self.base_url = base_url
+        self.base_url = base_url or ''
         self.template = Template(f'GET $url$headers$body\n\n')
         self.targets = self._get_targets(target_list)
 
@@ -64,12 +60,18 @@ class VegetaTargetsWriter:
     def get_url(self, target: VegetaTarget) -> str:
         """Converts url"""
         parsed = urlparse(target.url)
+        base = urlparse(self.base_url)
 
-        if not parsed.netloc:
-            base = urlparse(self.base_url)
-            parsed = ParseResult(base.scheme, base.netloc, *parsed[2:])
+        result = (
+            parsed.scheme or base.scheme,
+            parsed.netloc or base.netloc,
+            parsed.path or base.path,
+            parsed.params or base.params,
+            parsed.query or base.query,
+            parsed.fragment or base.fragment
+        )
 
-        return parsed.geturl()
+        return urlunparse(result)
 
     def to_str(self, target: VegetaTarget) -> str:
         """Converts VegetaTarget object to string"""
@@ -95,5 +97,5 @@ if __name__ == '__main__':
         targets.append(VegetaTarget())
 
     filename = op.join(SEARCH_SRV_DIR, 'tests', 'load', 'targets.txt')
-    vegeta_writer = VegetaTargetsWriter(SEARCH_SRV_URL, targets)
+    vegeta_writer = VegetaTargetsWriter(targets, SEARCH_SRV_URL)
     vegeta_writer.create(filename)
