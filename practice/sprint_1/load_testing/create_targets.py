@@ -2,13 +2,15 @@
 A module with a creator of targets for Vegeta
 """
 from abc import ABC, abstractmethod
+from dataclasses import dataclass
 from random import choice, randint, shuffle
+from sqlite3 import connect
 from string import Template
-from typing import AnyStr, Dict, Union
-from urllib.parse import urlencode, urlparse, urlunparse
+from typing import AnyStr, Dict, Union, List, Iterator, Iterable
+from urllib.parse import urlencode, urlparse, urlunparse, urljoin
 
 from common import op, SEARCH_SRV_DIR, SEARCH_SRV_URL
-from practice.sprint_1.etl.etl_requests import *
+from practice.sprint_1.etl.etl_requests import DB_ADDRESS, MovieDataExtractor
 
 
 @dataclass
@@ -18,18 +20,25 @@ class VegetaTarget:
     body: AnyStr = ''
 
 
-class TargetFactory(ABC):
+class VegetaTargetFactory(ABC):
     """A class to create VegetaTarget object"""
 
-    def __init__(self, obj, headers: Union[Dict[str, str], str] = '', body: AnyStr = ''):
-        self.source = obj
+    def __init__(self, headers: Union[Dict[str, str], str] = '', body: AnyStr = ''):
         self.headers = headers
         self.body = body
         self.params: List[str] = []
 
-    def create(self) -> VegetaTarget:
-        """Creates a target object"""
+    def create(self, add_args: Dict[str, Iterable] = None) -> VegetaTarget:
+        """Creates a target object
+        :param add_args: additional arguments {'name': ['values']}
+        """
         self.update_params()
+
+        if add_args and isinstance(add_args, dict):
+            for key, values in add_args:
+                self._add_random(key, values)
+        elif not isinstance(add_args, dict):
+            raise ValueError('Additional arguments should be of dict type')
 
         url = self._get_url_params()
         headers = self._get_headers()
@@ -63,11 +72,8 @@ class TargetFactory(ABC):
         return '?' + '&'.join(self.params)
 
 
-class MovieTargetFactory(TargetFactory):
-    """A class to create VegetaTarget object from Movie object"""
-
-    def __init__(self, movie: Movie, headers: Union[Dict[str, str], str] = '', body: AnyStr = ''):
-        super().__init__(movie, headers, body)
+class SearchServiceTargetFactory(VegetaTargetFactory):
+    """A class to create VegetaTarget object for Full text search service"""
 
     def update_params(self):
         """Fills self.params to create query string"""
@@ -100,8 +106,7 @@ class MovieTargetFactory(TargetFactory):
 
     def _add_search(self):
         """Adds search argument"""
-        values = (None, self.source.title)
-        self._add_random('search', values)
+        # implemented by self.create additional arguments
 
 
 class VegetaTargetsWriter:
@@ -189,10 +194,25 @@ if __name__ == '__main__':
         ]
 
     # creating targets for Vegeta
+    factory = SearchServiceTargetFactory()
     targets = []
+
+    # by movie
     for movie in high_rated:
-        one_movie_targets = [MovieTargetFactory(movie).create() for _ in range(randint(1, 3))]
+        t = movie.title
+        full_title = {'search': t}
+        shortened_title = {'search': movie.title[:randint(5, len(t))]}
+        description = {'search': movie.description[:randint(10, len(t))]}
+
+        movie_targets = map(factory.create, [full_title, shortened_title, description])
+        targets.extend(movie_targets)
+
+    # by actors
+    for movie in high_rated:
+        one_movie_targets = [factory.create() for _ in range(randint(0, 3))]
         targets.extend(one_movie_targets)
+
+    # by writers
 
     # writing targets to a file
     filename = op.join(SEARCH_SRV_DIR, 'tests', 'load', 'targets.txt')
