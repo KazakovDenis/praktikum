@@ -74,22 +74,36 @@ class MovieDataExtractor(BaseExtractor):
             return (r[0] for r in cursor.fetchall())
 
     def get_movie(self, movie_id: str) -> Movie:
-        """Returns a movie by id"""
-        movie_data = self._extract_raw_data(movie_id)
+        """Returns a movie object by id"""
+        movie_data = self.extract_one(movie_id)
+        movie_data['actors'] = self.get_actors(movie_data)
+        movie_data['writers'] = self.get_writers(movie_data)
         return Movie(**movie_data)
 
-    def get_actors(self, movie_id: str) -> Tuple[Actor]:
-        """Returns tuple of movie actors"""
-        return tuple(
-            Actor(**record) for record in self._extract_actors(movie_id)
-        )
+    def get_actors(self, movie_data: dict = None, movie_id: str = None) -> List[Actor]:
+        """Returns a list of movie actors
+        :param movie_data: if movie data already extracted
+        :param movie_id: to extract actors from DB
+        """
+        if movie_data:
+            if not isinstance(movie_data['actors'], list):
+                return []
+            return [Actor(**record) for record in movie_data['actors']]
 
-    def get_writers(self, movie_id: str) -> Tuple[Writer]:
-        """Returns tuple of movie writers"""
+        return [Actor(**record) for record in self._extract_actors(movie_id)]
+
+    def get_writers(self, movie_data: dict = None, movie_id: str = None) -> List[Writer]:
+        """Returns a list of movie writers
+        :param movie_data: if movie data already extracted
+        :param movie_id: to extract writers from DB
+        """
+        if movie_data:
+            if not isinstance(movie_data['writers'], list):
+                return []
+            return [Writer(**record) for record in movie_data['writers']]
+
         movie_data = self._extract_raw_data(movie_id)
-        return tuple(
-            Writer(**record) for record in self._extract_writers(movie_data)
-        )
+        return [Writer(**record) for record in self._extract_writers(movie_data)]
 
     def extract_one(self, movie_id: str) -> dict:
         """Returns one movie data prepared to load to ElasticSearch"""
