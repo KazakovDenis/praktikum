@@ -6,7 +6,7 @@ from math import ceil
 from os.path import join
 from re import search as re_search
 from sqlite3 import connect, Connection
-from typing import List, Iterator, Tuple
+from typing import List, Iterator
 from urllib.parse import urljoin
 
 import requests

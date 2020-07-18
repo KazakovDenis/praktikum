@@ -3,7 +3,7 @@ A module with a creator of targets for Vegeta
 """
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from random import choice, randint, shuffle
+from random import choice, shuffle
 from sqlite3 import connect
 from string import Template
 from typing import AnyStr, Dict, Union, List, Iterator, Iterable
@@ -35,7 +35,7 @@ class VegetaTargetFactory(ABC):
         self.update_params()
 
         if add_args and isinstance(add_args, dict):
-            for key, values in add_args:
+            for key, values in add_args.items():
                 self._add_random(key, values)
         elif not isinstance(add_args, dict):
             raise ValueError('Additional arguments should be of dict type')
@@ -112,18 +112,18 @@ class SearchServiceTargetFactory(VegetaTargetFactory):
 class VegetaTargetsWriter:
     """Vegeta targets file creator"""
 
-    def __init__(self, target_list: list, base_url: str = None):
+    def __init__(self, target_list: Iterable[VegetaTarget], base_url: str = None):
         """Constructor
-        :param target_list: a list of VegetaTarget objects
+        :param target_list: a sequence of VegetaTarget objects
         :param base_url: target's base_url
         """
         self.base_url = base_url or ''
         self.template = Template(f'GET $url$headers$body\n\n')
         self.targets = self._get_targets(target_list)
 
-    def _get_targets(self, target_list: list) -> Iterator:
+    def _get_targets(self, target_list: Iterable[VegetaTarget]) -> Iterator:
         """Prepares targets list to write to a file
-        :param target_list: a list of VegetaTarget objects
+        :param target_list: a sequence of VegetaTarget objects
         :return: an iterator of targets
         """
         str_targets = [self.to_str(target) for target in target_list]
@@ -193,28 +193,27 @@ if __name__ == '__main__':
             for m_id in extractor.get_movies_ids('imdb_rating > 7')
         ]
 
-    # creating targets for Vegeta
+    # creating objects for Vegeta targets
     factory = SearchServiceTargetFactory()
-    targets = []
+    search_args, persons = [], set()
 
-    # by movie
     for movie in high_rated:
-        t = movie.title
-        full_title = {'search': t}
-        shortened_title = {'search': movie.title[:randint(5, len(t))]}
-        description = {'search': movie.description[:randint(10, len(t))]}
+        # getting movie by title or description
+        short_title = movie.title[:len(movie.title) // 2]
+        short_description = movie.description[:len(movie.description) // 2] if movie.description else None
+        search_args.append({'search': [None, movie.title, short_title, short_description]})
 
-        movie_targets = map(factory.create, [full_title, shortened_title, description])
-        targets.extend(movie_targets)
+        # getting actors and writers
+        for person in [*movie.actors, *movie.writers]:
+            persons.add(person.name)
 
-    # by actors
-    for movie in high_rated:
-        one_movie_targets = [factory.create() for _ in range(randint(0, 3))]
-        targets.extend(one_movie_targets)
+    # getting search args by actors and writers
+    for person in persons:
+        search_args.append({'search': [None, person]})
 
-    # by writers
-
-    # writing targets to a file
+    # writing targets to the file
+    # https://github.com/KazakovDenis/praktikum/blob/master/search_service/tests/load/targets.txt
+    targets = map(factory.create, search_args)
     filename = op.join(SEARCH_SRV_DIR, 'tests', 'load', 'targets.txt')
     base_url = urljoin(SEARCH_SRV_URL, '/api/v1/movies')
     vegeta_writer = VegetaTargetsWriter(targets, base_url)
