@@ -7,4 +7,10 @@
 * PostgreSQL
   
 ## Сервисы
-* [Поисковый сервис](https://github.com/KazakovDenis/praktikum/tree/master/search_service#full-text-search-service)
+* [Поисковый сервис](https://github.com/KazakovDenis/praktikum/tree/master/srv_search#full-text-search-service)
+* [Панель администрирования](https://github.com/KazakovDenis/praktikum/tree/master/srv_admin)
+* [ETL](https://github.com/KazakovDenis/praktikum/tree/master/srv_etl)
+* API
+* UGC
+* Сервис авторизации
+* Сервис нотификации
