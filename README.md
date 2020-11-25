@@ -1,11 +1,10 @@
 # Praktikum
-  
-## Services
-* [Full text search service](https://github.com/KazakovDenis/praktikum/tree/master/search_service#full-text-search-service)
+В рамках данного проекта будет реализован онлайн-кинотеатр на микросервисной архитектуре.
 
-## Practice
-### Sprint 1
-* [Debugging](https://github.com/KazakovDenis/praktikum/blob/master/practice/sprint_1/debugging) 
-* [SQL task](https://github.com/KazakovDenis/praktikum/blob/master/practice/sprint_1/sqlite.sql)
-* [ETL](https://github.com/KazakovDenis/praktikum/blob/master/practice/sprint_1/etl/etl_requests.py)
-* [E2E tests](https://github.com/KazakovDenis/praktikum/blob/master/practice/sprint_1/load_testing/)
+В проекте использованы на текущий момент:
+* Flask и Elasticsearch - для построения полнотекстового поиска
+* Django - для построения панели администрирования
+* PostgreSQL
+  
+## Сервисы
+* [Поисковый сервис](https://github.com/KazakovDenis/praktikum/tree/master/search_service#full-text-search-service)
